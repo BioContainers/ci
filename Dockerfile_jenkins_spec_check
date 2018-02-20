@@ -1,0 +1,7 @@
+FROM debian:stable-slim
+RUN apt-get update
+RUN apt-get install -y python3-pip
+RUN pip3 install dockerfile_parse requests
+COPY jenkins_container_spec_check.py /root/
+
+ENTRYPOINT ["/usr/bin/python3", "/root/jenkins_container_spec_check.py"]
