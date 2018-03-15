@@ -1,0 +1,16 @@
+[Unit]
+Description=biocontainers ci proxy to jenkins
+
+[Service]
+User=ubuntu
+Group=ubuntu
+PIDFile=/home/ubuntu/ci-proxy.pid
+WorkingDirectory=/home/ubuntu
+ExecStart=/home/ubuntu/ci-proxy-service.sh
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
