@@ -145,7 +145,7 @@ try:
         send_comment('about.license field is a URL. license should be the license identifier (GPL-3.0 for example).')
     if 'about.license_file' not in labels:
         send_comment('please specify in about.license_file the location of the license file in the container, or a url to license for this release of the software.')
-    if labels['about.license'] not in licenses:
+    if labels['about.license'].replace('SPDX:', '').replace('spdx:', '') not in licenses:
         send_comment('about.license field is not in spdx list: https://spdx.org/licenses/, if it is a typo error, please fix it. If this is not a standard license, then ignore this message.')
 
     # biotools check
