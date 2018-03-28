@@ -71,13 +71,15 @@ def payload():
                 if 'added' not in commit:
                     commit['added'] = []
                 for modified in commit['added']:
+                    if len(modified.split('/')) == 2:
+                        modified = os.path.join(modified, 'Dockerfile')
                     container_path = '/'.join(modified.split('/')[:-1])
                     if container_path and container_path not in modified_container:
                         modified_container.append(container_path + '/Dockerfile')
                         updated = True
                 if 'modified' not in commit:
                     commit['modified'] = []
-                for modified in commit['modified']:
+                for modified in commit['modified']:                   
                     container_path = '/'.join(modified.split('/')[:-1])
                     if container_path and container_path not in modified_container:
                         modified_container.append(container_path + '/Dockerfile')
