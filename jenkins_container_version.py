@@ -20,6 +20,8 @@ dfp.content = content
 labels = dfp.labels
 
 software_version = None
+if 'TOOL_VERSION' in os.environ:
+    labels['software.version'] = os.environ['TOOL_VERSION']
 if 'software.version' not in labels or not labels['software.version']:
     print("Failed to found software.version")
     sys.exit(1)
@@ -27,6 +29,8 @@ else:
     software_version = labels['software.version']
 
 version = None
+if 'CONTAINER_VERSION' in os.environ:
+    labels['version'] = os.environ['CONTAINER_VERSION']
 if 'version' not in labels or not labels['version']:
     print("Failed to found version")
     sys.exit(1)
