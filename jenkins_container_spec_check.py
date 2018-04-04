@@ -102,13 +102,13 @@ if 'software' not in labels or not labels['software']:
 
 software = labels['software'].strip()
 
-pattern=re.compile("^([a-zA-Z0-9_-])+$")
+pattern=re.compile("^([a-z0-9_-])+$")
 if pattern.match(software) is None:
     logging.error(software + " has invalid name" )
     if 'container' in labels:
         if pattern.match(labels['container']) is None:
             status = False
-            msg.append('software name is invalid for a container, it does not match expected regexp [a-zA-Z0-9_-], please use the *container* label to specify a software name compatible with container naming rules.')
+            msg.append('software name is invalid for a container, it does not match expected regexp [a-z0-9_-], please use the *container* label to specify a software name compatible with container naming rules.')
 
 
 if 'base_image' not in labels or not labels['base_image']:
