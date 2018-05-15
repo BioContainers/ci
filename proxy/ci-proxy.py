@@ -26,6 +26,27 @@ else:
 if 'GITHUB_STATUS_TOKEN' not in os.environ or not os.environ['GITHUB_STATUS_TOKEN']:
     logging.debug('no github token, proxy will not notify errors to github')
 
+    
+def send_github_pr_comment(pr_id, comment):
+    logging.warn('send comment to pr '+str(pr_id))
+    if 'GITHUB_STATUS_TOKEN' not in os.environ or not os.environ['GITHUB_STATUS_TOKEN']:
+        return
+    logging.warn('send msg '+str(comment))
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': 'token ' + str(os.environ['GITHUB_STATUS_TOKEN'])
+    }
+
+    github_url = 'https://api.github.com/repos/BioContainers/containers/issues/'  + str(pr_id) + '/comments'
+
+    res = requests.post(
+                        github_url,
+                        json={
+                            'body': comment,
+                        },
+                        headers=headers
+    )    
+    
 @app.route('/ci-proxy', methods=['GET'])
 def ping():
     return "pong"
@@ -58,8 +79,13 @@ def payload():
                         containers.append(container_path)
                 if len(containers) > 1 or len(containers) == 0:
                     logging.error("ko, can't modify multiple containers in a same pull request")
+                    send_github_pr_comment(payload['number'], "can't modify multiple containers in a same pull request")
                     return "ko, can't modify multiple containers in a same pull request"
                 container_dir = containers[0].split('/')
+                if len(container_dir) != 2:
+                    comment = "Invalid structure, Dockerfile must be in directory softwarename/softwareversion/Dockerfile"
+                    send_github_pr_comment(payload['number'], comment)
+                    return comment
                 r = requests.post(jenkins_url + 'container-testci-pr/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&PULL_REQUEST_ID='+str(payload['number']) + '&FORCE_SHA1=' + payload['pull_request']['head']['sha'])
                 return "ok"
 
