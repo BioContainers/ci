@@ -117,7 +117,11 @@ if 'base_image' not in labels or not labels['base_image']:
 
 if 'software.version' not in labels or not labels['software.version']:
     status = False
-    msg.append('software.version label not present')
+    msg.append('software.version label not present (Upstream code version)')
+
+if 'version' not in labels or not labels['version']:
+    status = False
+    msg.append('version label not present (Dockerfile version)')
 
 if 'about.summary' not in labels or not labels['about.summary'] or len(labels['about.summary']) < 20:
     status = False
