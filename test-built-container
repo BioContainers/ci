@@ -14,7 +14,12 @@ YES=yes
 
 DEBUG=0
 CONTAINER_IMAGE=
-CMDS_FILE=test_cmds.txt
+#CMDS_FILE=test_cmds.txt
+CMDS_FILE=
+REPO="BioContainers/containers"
+GITHUB_STATUS_TOKEN=$GITHUB_AUTH_TOKEN
+COMMIT=$COMMIT_SHA1
+PR_ID=$PULL_REQUEST_ID
 
 ###################
 # Print help {{{1 #
@@ -23,6 +28,7 @@ CMDS_FILE=test_cmds.txt
 function print_help {
 	echo "Usage: $PROG_NAME [options] container_image"
 	echo
+	echo "   -t, --test-cmds            Path to test-cmds file."
 	echo "   -g, --debug                Debug mode."
 	echo "   -h, --help                 Print this help message."
 }
@@ -81,6 +87,7 @@ function read_args {
 		case $1 in
 			-g|--debug)             DEBUG=$((DEBUG + 1)) ;;
 			-h|--help)              print_help ; exit 0 ;;
+			-t|--test-cmds)		shift; CMDS_FILE=$1 ;; 
 			-|--|--*)               msg ERROR "Illegal option $1." ;;
 			-?)                     msg ERROR "Unknown option $1." ;;
 			-[^-]*) split_opt=$(echo $1 | sed 's/^-//' | sed 's/\([a-zA-Z]\)/ -\1/g') ; set -- $1$split_opt "${@:2}" ;;
@@ -110,7 +117,51 @@ function test_container {
 
 	[ -z "$entrypoint" ] || entrypoint_arg="--entrypoint=$1"
 
-	docker run $entrypoint_arg $CONTAINER_IMAGE $args || exit 1
+	echo "Running the following command:"
+	echo "docker run $entrypoint_arg $CONTAINER_IMAGE $args"
+	#docker run $entrypoint_arg $CONTAINER_IMAGE $args || exit 1
+	{
+		docker run $entrypoint_arg $CONTAINER_IMAGE $args &&
+		return 0
+	} || {
+		return 1
+	}
+}
+
+################
+# Send comment #
+################
+
+function send_comment {
+	local comment=$1
+	local hdr1="Accept: application/vnd.github.v3+json"
+	local hdr2="Authorization: token $GITHUB_STATUS_TOKEN"
+	local githuburl="https://api.github.com/repos/$REPO/commits/$COMMIT/comments"
+	if [ -n "$PR_ID" ] ; then
+		hdr1="Accept:application/vnd.github.v3.raw+json"
+		githuburl="https://api.github.com/repos/$REPO/issues/$PR_ID/comments"
+	fi
+	#echo "Cmd sent:"
+	#echo "curl -H '$hdr1' -H '$hdr2' -d '{\"body\": \"$comment\"}' $githuburl"
+	#echo
+	curl -H "$hdr1" \
+		-H "$hdr2" \
+		-d "{\"body\": \"$comment\"}" \
+		"$githuburl"
+}
+
+###############
+# Send status #
+###############
+
+function send_status {
+	local software=$1
+	local status=$2
+	local msg=$3
+	local stat_disp="success"
+	local hdr1="Accept: application/vnd.github.v3+json"
+	local hdr2="Authorization: token $GITHUB_STATUS_TOKEN"
+	#case success in 
 }
 
 #############
@@ -134,8 +185,10 @@ if [ -f "$CMDS_FILE" ] ; then
 			entrypoint=
 			args=$line
 		fi
-		test_container "$entrypoint" "$args"
+		#test_container "$entrypoint" "$args"
+		test_container "$entrypoint" "$args" || echo "Test FAILED"
 	done <"$CMDS_FILE"
 else
-	echo "No $CMDS_FILE present, skipping tests"
+	echo "No $CMDS_FILE (test file) present, skipping tests"
+	send_comment "No $CMDS_FILE (test file) present, skipping tests"
 fi
