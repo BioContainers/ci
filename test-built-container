@@ -20,6 +20,7 @@ REPO="BioContainers/containers"
 GITHUB_STATUS_TOKEN=$GITHUB_AUTH_TOKEN
 COMMIT=$COMMIT_SHA1
 PR_ID=$PULL_REQUEST_ID
+SOFTWARE=$CONTAINER
 
 ###################
 # Print help {{{1 #
@@ -158,10 +159,28 @@ function send_status {
 	local software=$1
 	local status=$2
 	local msg=$3
-	local stat_disp="success"
 	local hdr1="Accept: application/vnd.github.v3+json"
 	local hdr2="Authorization: token $GITHUB_STATUS_TOKEN"
-	#case success in 
+	local githuburl="https://api.github.com/repos/$REPO/statuses/$COMMIT"
+	case "$status" in
+		"s" | "success")
+			#echo "All tests were successful for $CONTAINER_IMAGE"  
+			status="success"
+			;;
+		"f" | "failure")
+			#echo "$CONTAINER_IMAGE testing failed on command:"
+			#echo "$msg"
+			status="failure"
+			;;
+		"n" | "none")
+			status="pending";;
+		*)
+			msg ERROR "Unknown test status: $status"
+			return 1;;
+	esac 
+	local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/check/$SOFTWARE\"}"
+	echo "Curl command:"
+	echo "curl -H '$hdr1' -H '$hdr2' -d '$json' $githuburl"
 }
 
 #############
@@ -186,8 +205,12 @@ if [ -f "$CMDS_FILE" ] ; then
 			args=$line
 		fi
 		#test_container "$entrypoint" "$args"
-		test_container "$entrypoint" "$args" || echo "Test FAILED"
+		if ! test_container "$entrypoint" "$args"; then
+			send_status $CONTAINER_IMAGE "failure" "Testing failed on command: $line"
+			exit 1
+		fi
 	done <"$CMDS_FILE"
+	send_status $CONTAINER_IMAGE "success" "All tests successful"
 else
 	echo "No $CMDS_FILE (test file) present, skipping tests"
 	send_comment "No $CMDS_FILE (test file) present, skipping tests"
