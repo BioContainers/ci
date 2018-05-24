@@ -179,8 +179,12 @@ function send_status {
 			return 1;;
 	esac 
 	local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/check/$SOFTWARE\"}"
-	echo "Curl command:"
-	echo "curl -H '$hdr1' -H '$hdr2' -d '$json' $githuburl"
+	#echo "Curl command:"
+	#echo "curl -H '$hdr1' -H '$hdr2' -d '$json' $githuburl"
+	curl -H "$hdr1" \
+		-H "$hdr2" \
+		-d "$json" \
+		"$githuburl"
 }
 
 #############
