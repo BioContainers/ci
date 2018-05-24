@@ -21,6 +21,9 @@ GITHUB_STATUS_TOKEN=$GITHUB_AUTH_TOKEN
 COMMIT=$COMMIT_SHA1
 PR_ID=$PULL_REQUEST_ID
 SOFTWARE=$CONTAINER
+HDR1="Accept: application/vnd.github.v3+json"
+HDR2="Authorization: token $GITHUB_STATUS_TOKEN"
+
 
 ###################
 # Print help {{{1 #
@@ -135,18 +138,16 @@ function test_container {
 
 function send_comment {
 	local comment=$1
-	local hdr1="Accept: application/vnd.github.v3+json"
-	local hdr2="Authorization: token $GITHUB_STATUS_TOKEN"
 	local githuburl="https://api.github.com/repos/$REPO/commits/$COMMIT/comments"
+	local header1=$HDR1
 	if [ -n "$PR_ID" ] ; then
-		hdr1="Accept:application/vnd.github.v3.raw+json"
+		header1="Accept:application/vnd.github.v3.raw+json"
 		githuburl="https://api.github.com/repos/$REPO/issues/$PR_ID/comments"
 	fi
 	#echo "Cmd sent:"
-	#echo "curl -H '$hdr1' -H '$hdr2' -d '{\"body\": \"$comment\"}' $githuburl"
-	#echo
-	curl -H "$hdr1" \
-		-H "$hdr2" \
+	#echo "curl -H '$header1' -H '$HDR2' -d '{\"body\": \"$comment\"}' $githuburl"
+        curl -H "$header1" \
+                -H "$HDR2" \
 		-d "{\"body\": \"$comment\"}" \
 		"$githuburl"
 }
@@ -159,17 +160,13 @@ function send_status {
 	local software=$1
 	local status=$2
 	local msg=$3
-	local hdr1="Accept: application/vnd.github.v3+json"
-	local hdr2="Authorization: token $GITHUB_STATUS_TOKEN"
+        local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/check/$SOFTWARE\"}"
 	local githuburl="https://api.github.com/repos/$REPO/statuses/$COMMIT"
 	case "$status" in
 		"s" | "success")
-			#echo "All tests were successful for $CONTAINER_IMAGE"  
 			status="success"
 			;;
 		"f" | "failure")
-			#echo "$CONTAINER_IMAGE testing failed on command:"
-			#echo "$msg"
 			status="failure"
 			;;
 		"n" | "none")
@@ -177,12 +174,11 @@ function send_status {
 		*)
 			msg ERROR "Unknown test status: $status"
 			return 1;;
-	esac 
-	local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/check/$SOFTWARE\"}"
+	esac
 	#echo "Curl command:"
-	#echo "curl -H '$hdr1' -H '$hdr2' -d '$json' $githuburl"
-	curl -H "$hdr1" \
-		-H "$hdr2" \
+	#echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
+        curl -H "$HDR1" \
+                -H "$HDR2" \
 		-d "$json" \
 		"$githuburl"
 }
@@ -216,6 +212,6 @@ if [ -f "$CMDS_FILE" ] ; then
 	done <"$CMDS_FILE"
 	send_status $CONTAINER_IMAGE "success" "All tests successful"
 else
-	echo "No $CMDS_FILE (test file) present, skipping tests"
+	#echo "No $CMDS_FILE (test file) present, skipping tests"
 	send_comment "No $CMDS_FILE (test file) present, skipping tests"
 fi
