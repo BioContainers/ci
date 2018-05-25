@@ -143,11 +143,11 @@ function send_comment {
 		githuburl="https://api.github.com/repos/$REPO/issues/$PR_ID/comments"
 	fi
 	#echo "Cmd sent:"
-	echo "curl -H '$header1' -H '$HDR2' -d '{\"body\": \"$comment\"}' $githuburl"
-        #curl -H "$header1" \
-                #-H "$HDR2" \
-		#-d "{\"body\": \"$comment\"}" \
-		#"$githuburl"
+	#echo "curl -H '$header1' -H '$HDR2' -d '{\"body\": \"$comment\"}' $githuburl"
+        curl -H "$header1" \
+                -H "$HDR2" \
+		-d "{\"body\": \"$comment\"}" \
+		"$githuburl"
 }
 
 ###############
@@ -175,10 +175,10 @@ function send_status {
 	esac
 	#echo "Curl command:"
 	echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
-        #curl -H "$HDR1" \
-                #-H "$HDR2" \
-		#-d "$json" \
-		#"$githuburl"
+        curl -H "$HDR1" \
+                -H "$HDR2" \
+		-d "$json" \
+		"$githuburl"
 }
 
 #############
