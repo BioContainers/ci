@@ -158,7 +158,7 @@ function send_status {
 	local software=$1
 	local status=$2
 	local msg=$3
-        local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/check/$SOFTWARE\"}"
+        local json="{\"description\": \"$msg\",\"state\": \"$status\",\"context\": \"biocontainers/status/test/$SOFTWARE\"}"
 	local githuburl="https://api.github.com/repos/$REPO/statuses/$COMMIT"
 	case "$status" in
 		"s" | "success")
