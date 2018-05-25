@@ -16,6 +16,7 @@ DEBUG=0
 CONTAINER_IMAGE=
 #CMDS_FILE=test_cmds.txt
 CMDS_FILE=
+TESTDATA_DIR=
 REPO="BioContainers/containers"
 GITHUB_STATUS_TOKEN=$GITHUB_AUTH_TOKEN
 COMMIT=$COMMIT_SHA1
@@ -32,7 +33,7 @@ HDR2="Authorization: token $GITHUB_STATUS_TOKEN"
 function print_help {
 	echo "Usage: $PROG_NAME [options] container_image"
 	echo
-	echo "   -t, --test-cmds            Path to test-cmds file."
+	echo "   -t, --test-cmds            Path to test-cmds.txt file (and its associated test files)."
 	echo "   -g, --debug                Debug mode."
 	echo "   -h, --help                 Print this help message."
 }
@@ -117,19 +118,16 @@ function test_container {
 
 	local entrypoint=$1
 	local args=$2
+	local mountpath=$3
 	local entrypoint_arg=
 
 	[ -z "$entrypoint" ] || entrypoint_arg="--entrypoint=$1"
 
 	echo "Running the following command:"
-	echo "docker run $entrypoint_arg $CONTAINER_IMAGE $args"
-	#docker run $entrypoint_arg $CONTAINER_IMAGE $args || exit 1
-	{
-		docker run $entrypoint_arg $CONTAINER_IMAGE $args &&
-		return 0
-	} || {
-		return 1
-	}
+	echo "docker run -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args"
+	docker run -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args
+	#echo "Command $?"
+	return $?
 }
 
 ################
@@ -145,11 +143,11 @@ function send_comment {
 		githuburl="https://api.github.com/repos/$REPO/issues/$PR_ID/comments"
 	fi
 	#echo "Cmd sent:"
-	#echo "curl -H '$header1' -H '$HDR2' -d '{\"body\": \"$comment\"}' $githuburl"
-        curl -H "$header1" \
-                -H "$HDR2" \
-		-d "{\"body\": \"$comment\"}" \
-		"$githuburl"
+	echo "curl -H '$header1' -H '$HDR2' -d '{\"body\": \"$comment\"}' $githuburl"
+        #curl -H "$header1" \
+                #-H "$HDR2" \
+		#-d "{\"body\": \"$comment\"}" \
+		#"$githuburl"
 }
 
 ###############
@@ -176,11 +174,11 @@ function send_status {
 			return 1;;
 	esac
 	#echo "Curl command:"
-	#echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
-        curl -H "$HDR1" \
-                -H "$HDR2" \
-		-d "$json" \
-		"$githuburl"
+	echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
+        #curl -H "$HDR1" \
+                #-H "$HDR2" \
+		#-d "$json" \
+		#"$githuburl"
 }
 
 #############
@@ -195,6 +193,8 @@ read_args "$@"
 
 # Test
 if [ -f "$CMDS_FILE" ] ; then
+	testdatapath=$(dirname $(realpath "$CMDS_FILE"))
+	#echo "Dir to mount: $testdatapath"
 	while read line ; do
 		has_entrypoint=$(echo $line | grep '^[^-]')
 		if [ -n "$has_entrypoint" ] ; then
@@ -204,8 +204,7 @@ if [ -f "$CMDS_FILE" ] ; then
 			entrypoint=
 			args=$line
 		fi
-		#test_container "$entrypoint" "$args"
-		if ! test_container "$entrypoint" "$args"; then
+		if ! test_container "$entrypoint" "$args" $testdatapath; then
 			send_status $CONTAINER_IMAGE "failure" "Testing failed on command: $line"
 			exit 1
 		fi
