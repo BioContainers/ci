@@ -19,7 +19,7 @@ CMDS_FILE=
 TESTDATA_DIR=
 REPO="BioContainers/containers"
 GITHUB_STATUS_TOKEN=$GITHUB_AUTH_TOKEN
-COMMIT=$COMMIT_SHA1
+COMMIT=$GIT_COMMIT
 PR_ID=$PULL_REQUEST_ID
 SOFTWARE=$CONTAINER
 HDR1="Accept: application/vnd.github.v3+json"
@@ -174,7 +174,7 @@ function send_status {
 			return 1;;
 	esac
 	#echo "Curl command:"
-	echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
+	# echo "curl -H '$HDR1' -H '$HDR2' -d '$json' $githuburl"
         curl -H "$HDR1" \
                 -H "$HDR2" \
 		-d "$json" \
