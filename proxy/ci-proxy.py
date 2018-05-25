@@ -26,7 +26,7 @@ else:
 if 'GITHUB_STATUS_TOKEN' not in os.environ or not os.environ['GITHUB_STATUS_TOKEN']:
     logging.debug('no github token, proxy will not notify errors to github')
 
-    
+
 def send_github_pr_comment(pr_id, comment):
     logging.warn('send comment to pr '+str(pr_id))
     if 'GITHUB_STATUS_TOKEN' not in os.environ or not os.environ['GITHUB_STATUS_TOKEN']:
@@ -45,8 +45,8 @@ def send_github_pr_comment(pr_id, comment):
                             'body': comment,
                         },
                         headers=headers
-    )    
-    
+    )
+
 @app.route('/ci-proxy', methods=['GET'])
 def ping():
     return "pong"
@@ -74,7 +74,9 @@ def payload():
                 files = res.json()
                 containers = []
                 for pull_file in files:
-                    container_path = '/'.join(pull_file['filename'].split('/')[:-1])
+                    filenames = pull_file['filename'].split('/')
+                    # container_path = '/'.join(pull_file['filename'].split('/')[:-1])
+                    container_path = '/'.join([filenames[0], filenames[1]])
                     if container_path not in containers:
                         containers.append(container_path)
                 if len(containers) > 1 or len(containers) == 0:
@@ -105,7 +107,7 @@ def payload():
                         updated = True
                 if 'modified' not in commit:
                     commit['modified'] = []
-                for modified in commit['modified']:                   
+                for modified in commit['modified']:
                     container_path = '/'.join(modified.split('/')[:-1])
                     if container_path and container_path not in modified_container:
                         modified_container.append(container_path + '/Dockerfile')
