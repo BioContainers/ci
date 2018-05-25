@@ -37,8 +37,8 @@ if 'version' not in labels or not labels['version']:
 else:
     version = labels['version']
 
-print('TOOL_VERSION="' + software_version + '"\n')
-print('CONTAINER_VERSION="' + version +'"\n')
+print('TOOL_VERSION=' + software_version + '\n')
+print('CONTAINER_VERSION=' + version +'\n')
 print('CONTAINER_TAG_PREFIX=v' + software_version + '_cv' + version + '\n')
 
 with open('/biocontainers/PhenoMeNal_Versions.txt', 'w') as version_file:
