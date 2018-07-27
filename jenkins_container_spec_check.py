@@ -109,7 +109,9 @@ if pattern.match(software) is None:
         if pattern.match(labels['container']) is None:
             status = False
             msg.append('software name is invalid for a container, it does not match expected regexp [a-z0-9_-], please use the *container* label to specify a software name compatible with container naming rules.')
-
+    else:
+        status = False
+        msg.append('software name is invalid for a container, it does not match expected regexp [a-z0-9_-], please use the *container* label to specify a software name compatible with container naming rules.')
 
 if 'base_image' not in labels or not labels['base_image']:
     status = False
