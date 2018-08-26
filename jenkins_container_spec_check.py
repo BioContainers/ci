@@ -155,7 +155,7 @@ try:
         send_comment('about.license field is not in spdx list: https://spdx.org/licenses/, if it is a typo error, please fix it. If this is not a standard license, then ignore this message.')
 
     # biotools check
-    biotools_label = 'extra.identifier.biotools'
+    biotools_label = 'extra.identifiers.biotools'
     biotools = None
     if biotools_label in labels:
         biotools = labels[biotools_label].strip()
@@ -163,7 +163,7 @@ try:
     else:
         bio = requests.get('https://bio.tools/api/tool/' + str(software) + '/?format=json')
         if bio.status_code != 404:
-            send_comment('Found a biotools entry matching the software name (https://bio.tools/' + labels['software']+ '), if this is the same software, please add the extra.identifier.biotools label to your Dockerfile')
+            send_comment('Found a biotools entry matching the software name (https://bio.tools/' + labels['software']+ '), if this is the same software, please add the extra.identifiers.biotools label to your Dockerfile')
         else:
             send_comment('No biotools label defined, please check if tool is not already defined in biotools (https://bio.tools) and add extra.identifier.biotools label if it exists. If it is not defined, you can ignore this comment.')
 
