@@ -165,7 +165,7 @@ try:
         if bio.status_code != 404:
             send_comment('Found a biotools entry matching the software name (https://bio.tools/' + labels['software']+ '), if this is the same software, please add the extra.identifiers.biotools label to your Dockerfile')
         else:
-            send_comment('No biotools label defined, please check if tool is not already defined in biotools (https://bio.tools) and add extra.identifier.biotools label if it exists. If it is not defined, you can ignore this comment.')
+            send_comment('No biotools label defined, please check if tool is not already defined in biotools (https://bio.tools) and add extra.identifiers.biotools label if it exists. If it is not defined, you can ignore this comment.')
 
     if biotools:
         entry = biotools
