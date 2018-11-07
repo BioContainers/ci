@@ -1,4 +1,5 @@
 from dockerfile_parse import DockerfileParser
+from dockerfile_parse.util import WordSplitter
 import sys
 import os
 import logging
@@ -15,8 +16,30 @@ if not docker_file or not os.path.exists(docker_file):
 with open(docker_file, 'r') as content_file:
         content = content_file.read()
 
+#First parsing so we can access the ARG instructions
 dfp = DockerfileParser()
 dfp.content = content
+
+###DockerfileParser doesn't know how to link ARG declarations to their subsequent use
+##Parsing all ARGs
+recipe_args = dict()
+for crtInstr in dfp.structure:
+	if crtInstr['instruction']=="ARG":
+		parts = crtInstr['value'].split('=')
+		if len(parts) != 2:
+			print("An ARG instruction is wrongly formatted")
+			sys.exit(1)
+		#If an ARG can be parsed, it is added to a temp env dictionary
+		crt_value = WordSplitter(parts[1]).dequote()
+		recipe_args[parts[0]]=crt_value
+
+if len(recipe_args.keys())>0:
+	#We must re-initialize the parser while including the ARG dictionary
+	print ("Updating parser with newly found ARG instructions")
+	dfp = DockerfileParser(parent_env = recipe_args)
+	dfp.content = content
+
+#Moved here to avoid repeating this step
 labels = dfp.labels
 
 software_version = None
