@@ -5,6 +5,8 @@ import os
 import logging
 import re
 
+import dockerparse_arg_fix
+
 def send_comment(comment):
     if 'GITHUB_STATUS_TOKEN' not in os.environ:
         logging.info(str({
@@ -93,6 +95,10 @@ with open(docker_file, 'r') as content_file:
 
 dfp = DockerfileParser()
 dfp.content = content
+
+#Need to double check on ARGs here
+dfp = dockerparse_arg_fix.reload_arg_to_env(dfp, content)
+
 labels = dfp.labels
 status = True
 msg = []
