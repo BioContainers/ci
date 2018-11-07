@@ -15,6 +15,7 @@ if not docker_file or not os.path.exists(docker_file):
 with open(docker_file, 'r') as content_file:
         content = content_file.read()
 
+#First parsing so we can access the ARG instructions
 dfp = DockerfileParser()
 dfp.content = content
 
@@ -37,13 +38,11 @@ if len(recipe_args.keys())>0:
 	dfp = DockerfileParser(parent_env = recipe_args)
 	dfp.content = content
 
-#print (dfp.envs)
-#print (dfp.labels)
+#Moved here to avoid repeating this step
 labels = dfp.labels
 
 software_version = None
 if 'TOOL_VERSION' in os.environ:
-    print ("BLORG")
     labels['software.version'] = os.environ['TOOL_VERSION']
 if 'software.version' not in labels or not labels['software.version']:
     print("Failed to found software.version")
