@@ -17,16 +17,8 @@ with open(docker_file, 'r') as content_file:
 
 dfp = DockerfileParser()
 dfp.content = content
-labels = dfp.labels
 
 ###DockerfileParser doesn't know how to link ARG declarations to their subsequent use
-###Let's find a way around it
-
-def is_arg_used_here (arg_dict, recipe_line):
-	for crt_arg in arg_dict.keys():
-		if "$"+crt_arg in recipe_line:
-			print (recipe_line)
-
 ##Parsing all ARGs
 recipe_args = dict()
 for crtInstr in dfp.structure:
@@ -36,17 +28,18 @@ for crtInstr in dfp.structure:
 		if len(parts) != 2:
 			print("An ARG instruction is wrongly formatted")
 			sys.exit(1)
+		#If an ARG can be parsed, it is added to a temp env dictionary
 		recipe_args[parts[0]]=parts[1]
-		continue
-	##ARG instructions are at the start of the Dockerfile
-	##Within the same loop we can update the structure using what we've found
-	is_arg_used_here (recipe_args, crtInstr['value'])
+
+if len(recipe_args.keys())>0:
+	#We must re-initialize the parser while including the ARG dictionary
+	print ("Updating parser with newly found ARG instructions")
+	dfp = DockerfileParser(parent_env = recipe_args)
+	dfp.content = content
 
 #print (dfp.envs)
 #print (dfp.labels)
-#print (recipe_args)
-#print (content)
-#print (dfp.structure)
+labels = dfp.labels
 
 software_version = None
 if 'TOOL_VERSION' in os.environ:
