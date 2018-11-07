@@ -1,4 +1,5 @@
 from dockerfile_parse import DockerfileParser
+from dockerfile_parse.util import WordSplitter
 import sys
 import os
 import logging
@@ -24,13 +25,13 @@ dfp.content = content
 recipe_args = dict()
 for crtInstr in dfp.structure:
 	if crtInstr['instruction']=="ARG":
-		#print ("Here's an ARG: "+crtInstr['value'])
 		parts = crtInstr['value'].split('=')
 		if len(parts) != 2:
 			print("An ARG instruction is wrongly formatted")
 			sys.exit(1)
 		#If an ARG can be parsed, it is added to a temp env dictionary
-		recipe_args[parts[0]]=parts[1]
+		crt_value = WordSplitter(parts[1]).dequote()
+		recipe_args[parts[0]]=crt_value
 
 if len(recipe_args.keys())>0:
 	#We must re-initialize the parser while including the ARG dictionary
