@@ -47,7 +47,7 @@ else:
 
 print('TOOL_VERSION=' + software_version + '\n')
 print('CONTAINER_VERSION=' + version +'\n')
-print('CONTAINER_TAG_PREFIX=v' + software_version + '_cv' + version + '\n')
+print('CONTAINER_TAG_PREFIX=' + software_version + '_cv' + version + '\n')
 
 with open('/biocontainers/PhenoMeNal_Versions.txt', 'w') as version_file:
         version_file.write('TOOL_VERSION="' + software_version + '"\n')
