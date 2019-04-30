@@ -62,6 +62,7 @@ def send_status(software, status, msg=None):
         is_success = 'pending'
     if status is False:
         is_success = 'failure'
+        logging.error('Found some errors: %s' % (info))
     headers = {
         'Accept': 'application/vnd.github.v3+json',
         'Authorization': 'token ' + str(os.environ['GITHUB_STATUS_TOKEN'])
