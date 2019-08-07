@@ -1,0 +1,8 @@
+FROM debian:stable-slim
+RUN apt-get update
+RUN apt-get install -y python3-pip
+RUN pip3 install dockerfile_parse requests gitpython
+COPY biotools-patch.py /root/
+COPY dockerparse_arg_fix.py /root/
+
+ENTRYPOINT ["/usr/bin/python3", "/root/biotools-patch.py"]
