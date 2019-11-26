@@ -77,6 +77,7 @@ containerVersion = version + "-" + versionExtra
 repo = repoSetup(biotools, containerVersion)
 
 bioFile = '/tmp/biotools-content/data/' + biotools + '/' + biotools + '.json'
+bioContainersFile = '/tmp/biotools-content/data/' + biotools + '/biocontainers.json'
 if not os.path.exists(bioFile):
     logging.error("Did not found biotools metadata file %s" % (bioFile))
     sys.exit(1)
@@ -99,10 +100,10 @@ if not exists:
     }
     data["download"].append(newDownload)
 
-    with open(bioFile, 'w') as fp:
+    with open(bioContainersFile, 'w') as fp:
         json.dump(data, fp, indent=4, separators=(', ', ': '), ensure_ascii=False)
 
-    repo.index.add([bioFile])
+    repo.index.add([bioContainersFile])
     repo.index.commit("Add download for %s:%s" % (biotools, containerVersion))
     repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (biotools, containerVersion))
         
