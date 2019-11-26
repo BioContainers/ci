@@ -72,6 +72,8 @@ biotools = labels[biotools_label].strip()
 version = labels["software.version"]
 versionExtra = labels["version"]
 name = labels["software"]
+if 'container' in labels:
+    name = labels['container']
 containerVersion = version + "-" + versionExtra
 
 repo = repoSetup(biotools, containerVersion)
