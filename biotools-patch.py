@@ -33,7 +33,7 @@ def createPR(name, version):
     res = requests.post(
             github_url,
             json={
-                'title': "biocontainers new download PR: %s:%s" % (name, containerVersion),
+                'title': "biocontainers new version PR: %s:%s" % (name, containerVersion),
                 'head': "biocontainers-bot:biocontainers-%s-%s" % (name, version),
                 "base": "master"
             },
@@ -84,12 +84,23 @@ if not os.path.exists(bioFile):
     logging.error("Did not found biotools metadata file %s" % (bioFile))
     sys.exit(1)
 
-data = {}
-with open(bioFile) as fp:
-    data = json.load(fp, object_pairs_hook=OrderedDict)
+
+data = {
+        'software': name,
+        'labels': labels,
+        'versions': []
+        }
+softwares = {'softwares': {}}
+softwares["softwares"][name] = data
+if os.path.exists(bioContainersFile):
+    with open(bioContainersFile) as fp:
+        softwares = json.load(fp, object_pairs_hook=OrderedDict)
+
+if name not in softwares["softwares"]:
+    softwares["softwares"][name] = data
 
 exists = False
-for download in data["download"]:
+for download in softwares["softwares"][name]["versions"]:
     if download["version"] == containerVersion:
         exists = True
         break
@@ -98,15 +109,16 @@ if not exists:
     newDownload = {
         "url": "biocontainers/" + name + ":" + containerVersion,
         "version": containerVersion,
-        "type": "Container file"
+        "type": "Container file",
+        "labels": labels
     }
-    data["download"].append(newDownload)
+    softwares["softwares"][name]["versions"].append(newDownload)
 
     with open(bioContainersFile, 'w') as fp:
-        json.dump(data, fp, indent=4, separators=(', ', ': '), ensure_ascii=False)
+        json.dump(softwares, fp, indent=4, separators=(', ', ': '), ensure_ascii=False)
 
     repo.index.add([bioContainersFile])
-    repo.index.commit("Add download for %s:%s" % (biotools, containerVersion))
+    repo.index.commit("Add version for %s:%s" % (biotools, containerVersion))
     repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (biotools, containerVersion))
         
 
