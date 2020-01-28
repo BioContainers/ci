@@ -66,7 +66,7 @@ biotools_label = 'extra.identifiers.biotools'
 biotools = None
 if biotools_label not in labels:
     logging.error("No biotools label")
-    sys.exit(0)
+    # sys.exit(0)
 biotools = labels[biotools_label].strip()
 
 version = labels["software.version"]
@@ -78,11 +78,22 @@ containerVersion = version + "-" + versionExtra
 
 repo = repoSetup(biotools, containerVersion)
 
-bioFile = '/tmp/biotools-content/data/' + biotools + '/' + biotools + '.json'
-bioContainersFile = '/tmp/biotools-content/data/' + biotools + '/biocontainers.json'
-if not os.path.exists(bioFile):
-    logging.error("Did not found biotools metadata file %s" % (bioFile))
-    sys.exit(1)
+#bioFile = None
+#if biotools is not None:
+#    bioFile = '/tmp/biotools-content/data/' + biotools + '/' + biotools + '.json'
+
+dirname = '/tmp/biotools-content/data/' + name 
+bioContainersFile = '/tmp/biotools-content/data/' + name + '/biocontainers.json'
+if biotools is not None:
+    dirname = '/tmp/biotools-content/data/' + biotools
+    bioContainersFile = '/tmp/biotools-content/data/' + biotools + '/biocontainers.json'
+
+if not os.path.exists(dirname):
+    os.makedirs(dirname)
+
+#if not os.path.exists(bioFile):
+#    logging.error("Did not found biotools metadata file %s" % (bioFile))
+#    sys.exit(1)
 
 
 data = {
