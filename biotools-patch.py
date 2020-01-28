@@ -129,8 +129,8 @@ if not exists:
         json.dump(softwares, fp, indent=4, separators=(', ', ': '), ensure_ascii=False)
 
     repo.index.add([bioContainersFile])
-    repo.index.commit("Add version for %s:%s" % (biotools, containerVersion))
-    repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (biotools, containerVersion))
+    repo.index.commit("Add version for %s:%s" % (name, containerVersion))
+    repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
         
 
     createPR(biotools, containerVersion)
