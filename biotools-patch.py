@@ -67,7 +67,8 @@ biotools = None
 if biotools_label not in labels:
     logging.error("No biotools label")
     # sys.exit(0)
-biotools = labels[biotools_label].strip()
+else:
+    biotools = labels[biotools_label].strip()
 
 version = labels["software.version"]
 versionExtra = labels["version"]
