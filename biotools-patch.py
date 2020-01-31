@@ -77,7 +77,11 @@ if 'container' in labels:
     name = labels['container']
 containerVersion = version + "-" + versionExtra
 
-repo = repoSetup(biotools, containerVersion)
+repo = None
+if biotools is not None:
+    repo = repoSetup(biotools, containerVersion)
+else:
+    repo = repoSetup(name, containerVersion)
 
 #bioFile = None
 #if biotools is not None:
@@ -133,7 +137,9 @@ if not exists:
     repo.index.commit("Add version for %s:%s" % (name, containerVersion))
     repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
         
-
-    createPR(biotools, containerVersion)
+    if biotools is not None:
+        createPR(biotools, containerVersion)
+    else:
+        createPR(name, containerVersion)
 
 
