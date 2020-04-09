@@ -135,7 +135,11 @@ if not exists:
 
     repo.index.add([bioContainersFile])
     repo.index.commit("Add version for %s:%s" % (name, containerVersion))
-    repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
+    try:
+        repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
+    except Exception as e:
+        logging.exception('failed to push fork: ' + str(e))
+        sys.exit(0)
         
     if biotools is not None:
         createPR(biotools, containerVersion)
