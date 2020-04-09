@@ -124,8 +124,8 @@ function test_container {
 	[ -z "$entrypoint" ] || entrypoint_arg="--entrypoint=$1"
 
 	echo "Running the following command:"
-	echo "docker run -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args"
-	docker run -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args
+	echo "docker run --rm -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args"
+	docker run --rm -v $mountpath:/biocontainers $entrypoint_arg $CONTAINER_IMAGE $args
 	#echo "Command $?"
 	return $?
 }
