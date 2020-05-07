@@ -134,9 +134,15 @@ if not exists:
         json.dump(softwares, fp, indent=4, separators=(', ', ': '), ensure_ascii=False)
 
     repo.index.add([bioContainersFile])
-    repo.index.commit("Add version for %s:%s" % (name, containerVersion))
+    if biotools is not None:
+        repo.index.commit("Add version for %s:%s" % (biotools, containerVersion))
+    else:
+        repo.index.commit("Add version for %s:%s" % (name, containerVersion))
     try:
-        repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
+        if biotools is not None:
+            repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (biotools, containerVersion))
+        else:
+            repo.git.push('-u', 'fork', 'biocontainers-%s-%s' % (name, containerVersion))
     except Exception as e:
         logging.exception('failed to push fork: ' + str(e))
         sys.exit(0)
