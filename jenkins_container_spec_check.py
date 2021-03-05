@@ -151,6 +151,9 @@ if 'version' in labels and labels['version']:
 send_status(software, status, msg)
 
 try:
+    if 'about.summary' in labels and len(labels['about.summary']) > 200:
+        send_comment('about.summary is quite long, please keep it short < 200 chars.')
+
     # license checks
     spdx = requests.get('https://raw.githubusercontent.com/sindresorhus/spdx-license-list/master/spdx.json')
     licenses = spdx.json()
@@ -158,8 +161,8 @@ try:
         send_comment('about.license field is a URL. license should be the license identifier (GPL-3.0 for example).')
     if 'about.license_file' not in labels:
         send_comment('please specify in about.license_file the location of the license file in the container, or a url to license for this release of the software.')
-    if labels['about.license'].replace('SPDX:', '').replace('spdx:', '') not in licenses:
-        send_comment('about.license field is not in spdx list: https://spdx.org/licenses/, if it is a typo error, please fix it. If this is not a standard license, then ignore this message.')
+    elif labels['about.license'] != "Custom License" and labels['about.license'].replace('SPDX:', '').replace('spdx:', '') not in licenses:
+        send_comment('about.license field is not in spdx list: https://spdx.org/licenses/, if it is a typo error, please fix it. If this is not a standard license, please specify *Custom License* and use *about.license_file* label to specify license location (in container or url).')
 
     # biotools check
     biotools_label = 'extra.identifiers.biotools'
