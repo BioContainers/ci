@@ -88,7 +88,14 @@ def payload():
                     comment = "Invalid structure, Dockerfile must be in directory softwarename/softwareversion/Dockerfile"
                     send_github_pr_comment(payload['number'], comment)
                     return comment
-                r = requests.post(jenkins_url + 'container-testci-pr/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&PULL_REQUEST_ID='+str(payload['number']) + '&FORCE_SHA1=' + payload['pull_request']['head']['sha'])
+                #r = requests.post(jenkins_url + 'container-testci-pr/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&PULL_REQUEST_ID='+str(payload['number']) + '&FORCE_SHA1=' + payload['pull_request']['head']['sha'])
+                params = {
+                    'FORCE_CONTAINER': container_dir[0],
+                    'FORCE_TOOL_VERSION': container_dir[1],
+                    'PULL_REQUEST_ID': str(payload['number']),
+                    'FORCE_SHA1': payload['pull_request']['head']['sha']
+                }
+                r = requests.post(jenkins_url + 'container-testci-pr/buildWithParameters', params=params)
                 return "ok"
 
             new_commits = {}
@@ -156,7 +163,13 @@ def payload():
                 logging.debug('data: '+json.dumps(new_commits[d]['payload']))
                 container_dir = d.split('/')
                 logging.debug('Call:' + jenkins_url + 'container-testci/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&FORCE_SHA1='+new_commits[d]['payload']['head_commit']['id'])
-                r = requests.get(jenkins_url + 'container-testci/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&FORCE_SHA1='+new_commits[d]['payload']['head_commit']['id'])
+                params = {
+                    'FORCE_CONTAINER': container_dir[0],
+                    'FORCE_TOOL_VERSION': container_dir[1],
+                    'FORCE_SHA1': new_commits[d]['payload']['head_commit']['id']
+                }
+                #r = requests.get(jenkins_url + 'container-testci/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&FORCE_SHA1='+new_commits[d]['payload']['head_commit']['id'])
+                r = requests.get(jenkins_url + 'container-testci/buildWithParameters', params=params)
                 logging.debug('post result '+str(r.status_code))
                 logging.debug(str(r.text))
                 # print(json.dumps(new_commits[d]['payload']))
