@@ -1,5 +1,6 @@
 from dockerfile_parse import DockerfileParser
 from dockerfile_parse.util import WordSplitter
+import sys
 
 def reload_arg_to_env (dfp, content):
 	recipe_args = dict()

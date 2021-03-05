@@ -1,7 +1,7 @@
 FROM debian:stable-slim
 RUN apt-get update
 RUN apt-get install -y python3-pip git
-RUN pip3 install dockerfile_parse requests gitpython
+RUN pip3 install dockerfile_parse requests gitpython PyYAML
 COPY biotools-patch.py /root/
 COPY dockerparse_arg_fix.py /root/
 RUN mkdir -p /root/.ssh
