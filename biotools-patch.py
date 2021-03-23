@@ -160,7 +160,7 @@ versionExtra = labels["version"]
 name = labels["software"]
 if 'container' in labels:
     name = labels['container']
-containerVersion = version + "-" + versionExtra
+containerVersion = 'v%s_cv%s' % (version, str(versionExtra))
 
 if branch is None:
     # no branch specified, look for an existing PR
