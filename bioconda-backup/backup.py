@@ -48,7 +48,7 @@ tags = rdata['tags']
 cli = docker.APIClient(base_url='unix://var/run/docker.sock')
 last_update = None
 tag = None
-for key, t in tags.iteritems():
+for key, t in tags.items():
     if tag['name'] == CONDA_TAG:
         tag = CONDA_TAG
         break
