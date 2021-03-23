@@ -88,7 +88,7 @@ except Exception as e:
     logging.error('Failed to scan container %s:%s, %s' % (CONDA_CONTAINER, CONDA_TAG, str(e)))
 
 try: 
-    logging.debug('cleanup of images') 
+    logging.info('cleanup of images') 
     docker_client.images.remove('quay.io/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG))
     docker_client.images.remove('docker-registry.local:30750/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG))
 except Exception:
