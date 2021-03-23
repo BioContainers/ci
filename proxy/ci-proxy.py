@@ -51,6 +51,18 @@ def send_github_pr_comment(pr_id, comment):
 def ping():
     return "pong"
 
+@app.route('/ci-proxy/bioconda', methods=['GET'])
+def bioconda():
+    # trigger bioconda-backup with CONTAINER and VERSION parameters
+    container = request.args.get('container')
+    version = request.args.get('version')
+    params = {
+        'CONTAINER': container,
+        'VERSION': version,
+    }
+    r = requests.post(jenkins_url + 'bioconda-backup/buildWithParameters', params=params)
+    return "ok"
+
 @app.route('/ci-proxy/hook', methods=['POST'])
 def payload():
         # print(request.content_type)
