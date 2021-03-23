@@ -49,6 +49,7 @@ cli = docker.APIClient(base_url='unix://var/run/docker.sock')
 last_update = None
 tag = None
 for key, t in tags.items():
+    logging.info("[bioconda][tag=%s]" % t['name'])
     if t['name'] == CONDA_TAG:
         tag = CONDA_TAG
         break
