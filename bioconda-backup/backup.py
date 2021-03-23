@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 regtags = []
 try:
-    reg = requests.get('http://localhost:30750/v2/biocontainers/%s/tags/list' % CONDA_CONTAINER)
+    reg = requests.get('http://docker-registry.local:30750/v2/biocontainers/%s/tags/list' % CONDA_CONTAINER)
     if reg.status_code == 200:
       regjson = reg.json()
       regtags = regjson['tags']
