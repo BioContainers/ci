@@ -73,15 +73,20 @@ try:
     if pull_ok:
         logging.info('push image docker-registry.local:30750/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG))        
         for line in docker_client.images.push('docker-registry.local:30750/biocontainers/%s' % CONDA_CONTAINER, tag=CONDA_TAG, stream=True):
-            logging.debug(str(line))
+            logging.info(str(line))
         logging.info('push ok')
-        logging.info('add anchore scan')
-        anchore_image = 'quay.io/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG)
-        cmd = ['anchore-cli', 'image', 'add', anchore_image]
-        scan = subprocess.check_output(cmd)
-        logging.info('scan output: ' + str(scan))
 except Exception as e:
     logging.error('Failed to push container %s:%s, %s' % (CONDA_CONTAINER, CONDA_TAG, str(e)))
+
+try:
+    logging.info('add anchore scan')
+    anchore_image = 'quay.io/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG)
+    cmd = ['anchore-cli', 'image', 'add', anchore_image]
+    scan = subprocess.check_output(cmd)
+    logging.info('scan output: ' + str(scan))
+except Exception as e:
+    logging.error('Failed to scan container %s:%s, %s' % (CONDA_CONTAINER, CONDA_TAG, str(e)))
+
 try: 
     logging.debug('cleanup of images') 
     docker_client.images.remove('quay.io/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG))
