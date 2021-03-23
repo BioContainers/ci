@@ -79,7 +79,7 @@ try:
         anchore_image = 'quay.io/biocontainers/%s:%s' % (CONDA_CONTAINER, CONDA_TAG)
         cmd = ['anchore-cli', 'image', 'add', anchore_image]
         scan = subprocess.check_output(cmd)
-        logging.debug('scan output: ' + str(scan))
+        logging.info('scan output: ' + str(scan))
 except Exception as e:
     logging.error('Failed to push container %s:%s, %s' % (CONDA_CONTAINER, CONDA_TAG, str(e)))
 try: 
