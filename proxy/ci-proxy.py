@@ -87,6 +87,10 @@ def payload():
                 containers = []
                 for pull_file in files:
                     filenames = pull_file['filename'].split('/')
+                    if len(filenames) < 2:
+                        comment = "You're trying to update a file not related to a container: " + str(pull_file['filename']) + ", this is forbidden"
+                        send_github_pr_comment(payload['number'], comment) 
+                        return comment
                     # container_path = '/'.join(pull_file['filename'].split('/')[:-1])
                     container_path = '/'.join([filenames[0], filenames[1]])
                     if container_path not in containers:
@@ -181,7 +185,7 @@ def payload():
                     'FORCE_SHA1': new_commits[d]['payload']['head_commit']['id']
                 }
                 #r = requests.get(jenkins_url + 'container-testci/buildWithParameters?FORCE_CONTAINER='+container_dir[0]+'&FORCE_TOOL_VERSION='+container_dir[1]+'&FORCE_SHA1='+new_commits[d]['payload']['head_commit']['id'])
-                r = requests.get(jenkins_url + 'container-testci/buildWithParameters', params=params)
+                r = requests.post(jenkins_url + 'container-testci/buildWithParameters', params=params)
                 logging.debug('post result '+str(r.status_code))
                 logging.debug(str(r.text))
                 # print(json.dumps(new_commits[d]['payload']))
