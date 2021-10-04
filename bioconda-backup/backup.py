@@ -57,7 +57,7 @@ tags = rdata['tags']
 cli = docker.APIClient(base_url='unix://var/run/docker.sock')
 last_update = None
 tag = None
-for key, t in tags.iteritems():
+for key, t in tags.items():
     last = t['last_modified']
     last_modified = parsedate_tz(last)
     if last_update is None or last_modified > last_update:
