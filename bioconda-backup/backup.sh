@@ -22,6 +22,9 @@ if [ ! -e bioconda-recipes ]; then
     echo "new clone"
     git clone https://github.com/bioconda/bioconda-recipes.git
     cd bioconda-recipes
+    if [ -e /tmp/bioconda.sha ]; then
+        LAST_SHA=`cat /tmp/bioconda.sha`
+    fi
 else
     cd bioconda-recipes
     if [ -z "$FORCE" ]; then
@@ -31,13 +34,16 @@ else
         echo "Force scan of all repo"
     fi
 fi
+
 git pull origin master
+
+NEW_SHA=`git show HEAD | sed -n 1p | cut -d " " -f 2`
+echo $NEW_SHA > /tmp/bioconda.sha
+echo "New sha: $NEW_SHA"
 
 if [ "a$LAST_SHA" == "a" ]; then
     find . -name "meta.yaml" > /tmp/recipes.txt
 else
-    NEW_SHA=`git show HEAD | sed -n 1p | cut -d " " -f 2`
-    echo "New sha: $NEW_SHA"
     git diff --name-only $LAST_SHA $NEW_SHA | grep "meta.yaml" > /tmp/recipes.txt
 fi
 
