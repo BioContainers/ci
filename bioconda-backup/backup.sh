@@ -1,6 +1,7 @@
 #!/bin/bash
 
-WORKDIR=/home/ubuntu/conda-backup
+#WORKDIR=/home/ubuntu/conda-backup
+WORKDIR=$1
 
 date
 
