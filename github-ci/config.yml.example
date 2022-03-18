@@ -1,0 +1,27 @@
+github:
+  token: ''
+
+biotools:
+  token: ''
+  ssh_key: '/etc/biocontainers-ci/id_rsa'
+
+dockerhub:
+  username: ''
+  password: ''
+
+registry:
+  url: biocontainers.novalocal:5000
+
+anchore:
+  url: http://myhostname:8228/v1
+  username: 'admin'
+  password: 'anchoreatbiocontainers'
+
+s3:
+  endpoint: ''
+  access_key: ''
+  secret_access_key: ''
+  bucket: 'biocontainers'
+  region: 'eu-west-1'
+
+tmpdir: /tmp

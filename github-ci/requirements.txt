@@ -1,0 +1,7 @@
+requests
+docker
+pyyaml
+click
+anchorecli
+boto3
+gitpython

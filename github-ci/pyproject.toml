@@ -1,0 +1,12 @@
+[build-system]
+requires = [
+  "setuptools>=42",
+  "requests",
+  "docker",
+  "pyyaml",
+  "click",
+  "anchorecli",
+  "boto3",
+  "gitpython"
+]
+build-backend = "setuptools.build_meta"
