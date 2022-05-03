@@ -165,8 +165,11 @@ class CI:
         '''
         sing_image = os.path.join(self.config.get('workdir', '/tmp'), 'singimage.sif')
 
+        my_env = os.environ.copy()
+        my_env['SINGULARITY_CACHEDIR'] = self.config['singularity']['tmp']
+        my_env['SINGULARITY_TMPDIR'] = self.config['singularity']['tmp']
         try:
-            convert_logs = subprocess.check_output(['singularity', 'build', sing_image, 'docker://' + self.dockerhub_name(f)], cwd=self.workdir())
+            convert_logs = subprocess.check_output(['singularity', 'build', sing_image, 'docker://' + self.dockerhub_name(f)], cwd=self.workdir(), env=my_env)
             logging.info('[ci][singularity] ' + str(convert_logs))
             '''
             volumes = {

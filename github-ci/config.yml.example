@@ -25,3 +25,6 @@ s3:
   region: 'eu-west-1'
 
 tmpdir: /tmp
+
+singularity:
+  tmp: '/tmp'
