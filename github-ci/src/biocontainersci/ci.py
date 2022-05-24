@@ -228,6 +228,10 @@ class CI:
         with open(os.path.join(self.workdir(), f['container'], f['version'], 'Dockerfile'), 'r') as d:
             lines = d.readlines()
             for l in lines:
+                if '.aws' in l:
+                    logging.error('[ci] private biocontainers-ci directory access in dockerfile forbiden')
+                    send_github_pr_comment(self.config, 'Forbiden access to biocontainers-ci private files in Dockerfile')
+                    raise BiocontainersCIException('private biocontainers-ci directory access in dockerfile forbiden')
                 if 'etc/biocontainers-ci' in l:
                     logging.error('[ci] private biocontainers-ci directory access in dockerfile forbiden')
                     send_github_pr_comment(self.config, 'Forbiden access to biocontainers-ci directory in Dockerfile')
