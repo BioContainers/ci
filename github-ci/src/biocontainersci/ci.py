@@ -335,6 +335,7 @@ class CI:
     '''
     def check_labels(self, f:dict, labels:dict):
         label_errors = []
+        software = 'unknown'
         if 'software' not in labels or not labels['software']:
             label_errors.append('software label not present')
             status = False
