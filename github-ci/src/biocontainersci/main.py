@@ -101,7 +101,7 @@ def github(config):
 
 def bioworkflow(config, f):
     ci = CI(config)
-    ci.workflow(f)
+    return ci.workflow(f)
 
 @click.command()
 @click.option('--file', help='Dockerfile')
@@ -154,7 +154,9 @@ def run(file, commit, dry):
         sys.exit(1)
 
     for f in files:
-        bioworkflow(config, f)
+        status = bioworkflow(config, f)
+        if not status:
+            sys.exit(1)
 
 if __name__ == '__main__':
     run()

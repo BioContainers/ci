@@ -387,6 +387,9 @@ class CI:
 
         send_status(self.config, software, status, label_errors)
 
+        if not status and label_errors:
+            send_github_pr_comment(self.config, ', '.join(label_errors))
+
         # Warnings only
         try:
             if 'about.summary' in labels and len(labels['about.summary']) > 200:
