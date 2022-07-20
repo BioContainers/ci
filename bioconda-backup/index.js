@@ -7,6 +7,9 @@ const { execSync } = require("child_process");
 const yaml_config = require('node-yaml-config');
 const nodemailer = require('nodemailer');
 const yargs = require("yargs");
+const { fileURLToPath } = require('url');
+const { PromisePool } = require('@supercharge/promise-pool');
+const { json } = require('express');
 
 const biocontainers = 'https://github.com/BioContainers/containers.git';
 const bioconda = 'https://github.com/bioconda/bioconda-recipes.git';
@@ -23,6 +26,9 @@ const registry = config.registry.host
 
 var docker_errors = 0;
 var quay_errors = 0;
+var last_login = 0;
+var total = 0
+// var errors = []
 
 const getRepoFiles = function(dirPath, arrayOfFiles) {
     let files = fs.readdirSync(dirPath)
@@ -96,7 +102,7 @@ async function send_report() {
 
 }
 
-async function repoFiles(kind='biocontainers', scan=false) {
+async function repoFiles(kind='biocontainers', do_scan=false) {
     let destDir = `${config.workdir}/${kind}`;
     let lastCommit = null;
     if (fs.existsSync(destDir)) {
@@ -115,11 +121,11 @@ async function repoFiles(kind='biocontainers', scan=false) {
     console.log('head commit', headCommit);
     
     let files = [];
-    if(!scan && lastCommit && lastCommit == headCommit) {
+    if(!do_scan && lastCommit && lastCommit == headCommit) {
         console.log('nothing to do');
         return [];
     }
-    if(!scan && lastCommit) {
+    if(!do_scan && lastCommit) {
         console.debug('get diff');
         let cold = await repo.getCommit(lastCommit);
         let coldTree = await cold.getTree();
@@ -143,7 +149,7 @@ async function repoFiles(kind='biocontainers', scan=false) {
 }
 
 
-async function getQuayioTags(container) {
+async function getQuayioTags(container, scan_options) {
   let tags = [];
   let baseurl = `https://quay.io/api/v1/repository/biocontainers/${container}/tag/`;
   let page=1;
@@ -170,7 +176,7 @@ async function getQuayioTags(container) {
     url = `${baseurl}?page=${page}`;
   }
 }
-async function getDockerhubTags(container) {
+async function getDockerhubTags(container, scan_options) {
   console.log('[docker][tags]', container);
   let tags = [];
   let url = `https://hub.docker.com/v2/repositories/biocontainers/${container}/tags`;
@@ -188,6 +194,7 @@ async function getDockerhubTags(container) {
     } catch(err) {
       console.error('[dockerhub][tags] error', err.response.status, err.response.statusText);
       docker_errors++;
+      errors.push(`[docker][fetch] ${container}`)
       break;
     }
   }
@@ -195,7 +202,21 @@ async function getDockerhubTags(container) {
   return tags;
 }
 
-async function backup(container, tag, quay=false){
+async function getLocalBackupTag(container, tag) {
+  // http://biocontainers.novalocal:5000/v2/biocontainers/abeona/manifests/0.23.0--py36_0
+  let url = `http://${registry}/v2/biocontainers/${container}/manifests/${tag}`;
+    console.debug('[local] call manifest', url)
+    try {
+      await axios.get(url);
+      return true 
+      
+    } catch(err) {
+      console.error('[local][tag] tag not found');
+      return false
+    }
+}
+
+async function backup(container, tag, quay, scan_options){
     let localBackup = false;
     // start a backup
     let fromContainer = `biocontainers/${container}:${tag}`;
@@ -206,23 +227,45 @@ async function backup(container, tag, quay=false){
     let isError = false;
 
     let toContainer = `${registry}/biocontainers/${container}:${tag}`;
-    try {
-      execSync(`docker manifest inspect ${toContainer}`);
-      console.debug(`[backup] skip ${fromContainer} to ${toContainer}`);
-    } catch(err) {
-      localBackup = true;
-      console.debug(`[backup] backup ${fromContainer} to ${toContainer}`);
+    if(scan_options.backup) {
+      try {
+        // manifest on local registry does not work...
+        // execSync(`docker manifest inspect ${toContainer}`);
+        let exists = await getLocalBackupTag(container, tag)
+        if(exists) {
+          console.debug(`[backup][local] skip ${fromContainer} to ${toContainer}`);
+        } else {
+          localBackup = true;
+          console.debug(`[backup][local] backup ${fromContainer} to ${toContainer}`);
+        }
+      } catch(err) {
+        localBackup = true;
+        console.debug(`[backup][local] backup ${fromContainer} to ${toContainer}`);
+      }
     }
 
     let awsContainer = `public.ecr.aws/${config.aws}/${container}:${tag}`;
     let awsBackup = false;
-    if(config.aws) {
+    if(scan_options.aws) {
+      if(!config.aws) {
+        throw new Error(`[backup][aws] aws not configured ${container}:${tag}`)
+      }
       try {
+        let ts = Date.now()
+        console.debug(`[aws][docker][login][last=${(new Date(last_login)).toLocaleString()}][now=${(new Date(ts)).toLocaleString()}]`)
+        if(last_login === 0 || (last_login + (3600*1000)) < Date.now()) {
+          console.debug('[backup][aws] run docker login', (new Date(ts)).toLocaleString());
+          execSync('aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws');
+          last_login = ts
+        } else {
+          console.log('[aws][login] no need to login')
+        }
+
         execSync(`docker manifest inspect ${awsContainer}`);
-        console.debug(`[backup] skip ${awsContainer}`);
+        console.debug(`[backup][aws] skip ${awsContainer}`);
       } catch(err) {
         awsBackup = true;
-        console.debug(`[backup] backup ${awsContainer}`);
+        console.debug(`[backup][aws] backup ${awsContainer}`);
       }
     }
 
@@ -230,37 +273,42 @@ async function backup(container, tag, quay=false){
 
     if(doBackup) {
       try {
-      console.debug('[backup] run '+`docker pull ${fromContainer}`);
-      execSync(`docker pull ${fromContainer}`);
+        console.debug('[backup] run '+`docker pull ${fromContainer}`);
+        if(!scan_options.dry) {
+          execSync(`docker pull ${fromContainer}`);
+        }
       } catch(err) {
         console.error(`[backup] failed to pull ${fromContainer}`);
+        throw new Error(`[backup] ${container}:${tag}`)
       }
     }
 
     if(localBackup) {
       try {
-        console.debug('[backup] run '+`docker tag ${fromContainer} ${toContainer}`);
-        execSync(`docker tag ${fromContainer} ${toContainer}`);
-        console.debug('[backup] run '+`docker push ${toContainer}`);
-        execSync(`docker push ${toContainer}`);
-        console.debug('[backup] run '+`docker rmi ${toContainer}`);
-        execSync(`docker rmi ${toContainer}`);
+        if(!scan_options.dry) {
+          console.debug('[backup] run '+`docker tag ${fromContainer} ${toContainer}`);
+          execSync(`docker tag ${fromContainer} ${toContainer}`);
+          console.debug('[backup] run '+`docker push ${toContainer}`);
+          execSync(`docker push ${toContainer}`);
+        } else {
+          console.log(`[backup][local] should tag and push ${fromContainer} ${toContainer}`)
+        }
       } catch(err) {
         console.error('[backup] local backup error', err);
         isError = true;
+      }
+
+      try {
+        console.debug('[backup] run '+`docker rmi ${toContainer}`);
+        execSync(`docker rmi ${toContainer}`);
+      } catch(err) {
+        console.error(`[backup] delete error ${toContainer}`, err);
       }
     }
 
     // if aws, docker login and docker tag+push
     if(awsBackup) {
-        try {
-          console.debug('[backup][aws] run docker login');
-          execSync('aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws');
-        } catch(err) {
-          console.debug(`[backup] aws login error `, err);
-          isError = true;
-        }
-
+      if(!scan_options.dry) {
         try {
           console.debug('[backup][aws] create repo', container);
           execSync(`aws ecr-public create-repository --repository-name ${container}`);
@@ -272,17 +320,25 @@ async function backup(container, tag, quay=false){
           execSync(`docker tag ${fromContainer} ${awsContainer}`);
           console.debug(`[backup][aws] push ${awsContainer}`);
           execSync(`docker push ${awsContainer}`);
-          execSync('docker logout')
-          console.debug('[backup] run '+`docker rmi ${awsContainer}`);
-          execSync(`docker rmi ${awsContainer}`);
         } catch(err) {
-          console.error(`[backup] aws backup error ${awsContainer}`, err);
+          let ts = Date.now()
+          console.error(`[backup] aws backup error ${awsContainer}`, err, (new Date(ts)).toLocaleString());
           isError = true;
         }
+      } else {
+        console.log(`[backup][aws] should tag and push ${fromContainer} ${awsContainer}`)
+      }
+
+      try {
+        console.debug('[backup] run '+`docker rmi ${awsContainer}`);
+        execSync(`docker rmi ${awsContainer}`);
+      } catch(err) {
+        console.error(`[backup] delete error ${awsContainer}`, err);
+      }
     }
 
 
-    if(doBackup) {
+    if(doBackup && !scan_options.dry) {
       try {
         console.debug('[backup] run '+`docker rmi ${fromContainer}`);
         execSync(`docker rmi ${fromContainer}`);
@@ -328,7 +384,7 @@ async function getScanReport(container, tag, quay=false){
     }
 
   } catch(err) {
-    console.log('[scan] not found, add image', err.response.status, err.response.statusText);
+    console.log('[scan] not found, add image', container, tag, err.response.status, err.response.statusText);
     addImage = true;
   }
 
@@ -356,14 +412,47 @@ function s3upload(s3params) {
         reject(err);
         return;
       }
-      console.debug('data', data);
+      console.debug('[scan][s3][upload] data', data);
       resolve(data);
     });
   })
 }
 
-async function dockerhub(containers, options) {
+async function doTheStuff(container, tag, quay, scan_options) {
+  let ts = (new Date()).toLocaleString()
+  console.log(`[doTheStuff][quay=${quay}][${ts}] ${container}:${tag}`)
+  let is_error = false
+  try {
+    if(scan_options.security) {
+      if(!scan_options.dry) {
+      await getScanReport(container, tag, quay);
+      } else {
+        console.log('[security] should scan for report', container, tag)
+      }
+    }
+  } catch(err) {
+    is_error = true
+    console.error('[docker] error', container, err.message)
+    errors.push(`[docker][security] ${container}: ${err.message}`)
+  }
+  try {    
+    if(scan_options.backup || scan_options.aws) {
+      await backup(container, tag, quay, scan_options);
+    }
+  } catch(err) {
+    is_error = true
+    console.error('[docker] error', container, err.message)
+    errors.push(`[docker][backup] ${container}: ${err.message}`)
+  }
+  if (is_error) {
+    docker_errors++;
+  }
+  return {container, tag}
+}
+
+async function dockerhub(containers, scan_options) {
   console.log('[docker]', containers.length);
+  let container_list = []
   for(let i=0;i<containers.length;i++) {
     let c = containers[i].name;
     if(c === undefined || c === null) {
@@ -373,7 +462,7 @@ async function dockerhub(containers, options) {
     try {
       console.log('[docker]', c);
       if(!tags || tags.length==0) {
-        tags = await getDockerhubTags(c);
+        tags = await getDockerhubTags(c, scan_options);
         await fs.writeFileSync(`${config.workdir}/biocontainers.json`, JSON.stringify({name: c, tags: tags, type: 'docker'}) + "\n", {flag: 'a+'});
       }
     } catch(err) {
@@ -385,24 +474,16 @@ async function dockerhub(containers, options) {
       console.log('[docker] no tag found', c);
     }
     for(let t=0;t<tags.length;t++) {
-      try {
-        if(options.security) {
-          await getScanReport(c, tags[t], false);
-        }
-        if(options.backup) {
-          await backup(c, tags[t], false);
-        }
-      } catch(err) {
-        docker_errors++;
-        console.error('[docker] error', c, err.message)
-      }
+      container_list.push({container: c, tag: tags[t], quay: false})
+
     }
   }
+  return container_list
 }
 
-async function quayio(containers, options) {
+async function quayio(containers, scan_options) {
   console.log('[quay.io]', containers.length);
-
+  let container_list = []
   for(let i=0;i<containers.length;i++) {
     let c = containers[i].name;
     if(c === undefined || c === null) {
@@ -412,7 +493,7 @@ async function quayio(containers, options) {
     let tags = containers[i].tags;
     try {
       if(!tags || tags.length==0) {
-        tags = await getQuayioTags(c);
+        tags = await getQuayioTags(c, scan_options);
         await fs.writeFileSync(`${config.workdir}/biocontainers.json`, JSON.stringify({name: c, tags: tags, type: 'bioconda'})+"\n", {flag: 'a+'});
       }
     } catch(err) {
@@ -421,68 +502,121 @@ async function quayio(containers, options) {
       continue
     }
     if(tags.length == 0){
-      console.log('[docker] no tag found', c);
+      console.log('[quay.io] no tag found', c);
     }
     for(let t=0;t<tags.length;t++) {
-      try {
-        if(options.security) {
-          await getScanReport(c, tags[t], true);
-        }
-        if(options.backup) {
-          await backup(c, tags[t], true);
-        }
-      } catch(err) {
-        quay_errors++;
-        console.error('[quay.io] error', c, err.message)
-      }
+      container_list.push({container: c, tag: tags[t], quay: true})
     }
   }
+  return container_list
 }
 
+function scan(kind, scan_options) {
+  if(kind == 'biocontainers' && !scan_options.docker) {
+    return []
+  }
+  if(kind == 'bioconda' && !scan_options.conda) {
+    return []
+  }
+  return repoFiles(kind, !scan_options.updated)
+}
 
-let dockerhubImages = [];
-let quayioImages = [];
-let total = 0;
-
+// let dockerhubImages = [];
+// let quayioImages = [];
 
 const options = yargs
  .usage('$0 <cmd> [args]')
- .option("b", { alias: "backup", describe: "Backup containers", type: "boolean"})
+ .option("a", { alias: "aws", describe: "Backup containers to AWS registry", type: "boolean"})
+ .option("b", { alias: "backup", describe: "Backup containers to internal registry", type: "boolean"})
  .option("s", { alias: "security", describe: "Security scan updates", type: "boolean"})
  .option("u", { alias: "updated", describe: "Scan only updated containers/tags, else scan all", type: "boolean"})
+ .options("c", {alias: "conda", describe: "check bioconda", type: "boolean"})
+ .options("g", {alias: "docker", describe: "check biocontainers dockerfiles", type: "boolean"})
+ .options("n", {alias: "use", describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
+ .option("d", { alias: "dry", describe: "dry run, do not execute", type: "boolean"})
+ .option("f", { alias: "file", describe: "file path to containers/tags list"})
  .argv;
 
 if(fs.existsSync(`${config.workdir}/biocontainers.json`)) {
   fs.unlinkSync(`${config.workdir}/biocontainers.json`);
 }
 
-// scan all to get up-to-date scan repo
-repoFiles('biocontainers', !options.updated).then(dockerfiles => {
-    for(let i=0;i<dockerfiles.length;i++){
-        let elts = dockerfiles[i].split('/');
-        dockerhubImages.push({'name': elts[elts.length-3], 'tags': []})
+async function getContainers(scan_options) {
+  if(scan_options.use){
+    let elt = scan_options.use.split(':')
+    let c = [{'name': elt[1], 'tags': [], quay: elt[0] == 'biocontainers' ? false : true}]
+    if(elt[0] == 'biocontainers') {
+      return dockerhub(c, false)
     }
-    total += dockerhubImages.length;
-    return dockerhubImages;
-}).then((images) => {
-      return dockerhub(images, options);
-}).then(() => {
-    return repoFiles('bioconda', !options.updated);
-}).then(condafiles => {
-    for(let i=0;i<condafiles.length;i++){
-        let elts = condafiles[i].split('/');
-        quayioImages.push({'name': elts[elts.length-2], 'tags': []});
+    return quayio(c, true)
+  }
+  if(scan_options.file) {
+    let containers_file = fs.readFileSync(scan_options.file, 'UTF-8');
+    let file_data = containers_file.split(/\r?\n/)
+    let file_containers = []
+    for(let i=0;i<file_data.length;i++){
+      if(!file_data[i]){
+        continue
+      }
+      let c = JSON.parse(file_data[i])
+      for(let t=0;t<c.tags.length;t++) {
+        // file lines: {name: c, tags: tags, type: 'docker'}
+        // expected {container: container_name, tag: tag_name, quay: true|galse}
+        file_containers.push({container: c.name, tag: c.tags[t], quay: c.type == 'bioconda' ? true : false})
+      }
     }
-    total += quayioImages.length;
-    return quayioImages;
-}).then(images => {
-    return quayio(images, options);
+    return file_containers
+  }
+  let containers = []
+  let dockerfiles = await scan('biocontainers', scan_options)
+  let docker_containers = []
+  for(let i=0;i<dockerfiles.length;i++){
+    let elts = dockerfiles[i].split('/');
+    docker_containers.push({'name': elts[elts.length-3], 'tags': [], quay: false})
+  }
+  let data = await dockerhub(docker_containers, scan_options)
+  containers = containers.concat(data)
+
+  let condafiles = await scan('bioconda', scan_options)
+  let conda_containers = []
+  for(let i=0;i<condafiles.length;i++){
+    let elts = condafiles[i].split('/');
+    conda_containers.push({'name': elts[elts.length-2], 'tags': [], quay: true});
+  }
+  data = await quayio(conda_containers, scan_options)
+  containers = containers.concat(data)
+
+  return containers
+  
+}
+
+getContainers(options).then((containers) => {
+  let ts = new Date()
+  console.log(`[containers][list][date=${ts.toLocaleString()}] ${containers.length} to handle!`)
+  total = containers.length
+
+  return PromisePool
+  .for(containers)
+  .withConcurrency(5)
+  .process(async (container, index) => {
+    console.log(`[process][${index}] ${container.container}:${container.tag}`)
+    await doTheStuff(container.container, container.tag, container.quay, options)
+  })
+}).then((res) => {
+  console.log('[doTheStuff]', res.results, res.errors)
+  // cleanup
+  try {
+    execSync(`docker image prune -a`);
+    console.debug('[cleanup] done');
+  } catch(err) {
+    console.error('[cleanup] failed');
+  }
+  return send_report()
 }).then(() => {
-    return send_report();
-}).then(() => {
-    console.log('done', total, docker_errors, quay_errors);
-    process.exit(0);
+  console.log('done', total, docker_errors, quay_errors);
+  process.exit(0);
 }).catch(err => {
-    console.error('oopps!', err, docker_errors, quay_errors);
-    process.exit(1);
+  console.error('oopps!', err, docker_errors, quay_errors);
+  process.exit(1);
 })
+

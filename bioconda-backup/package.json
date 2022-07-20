@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supercharge/promise-pool": "^2.3.0",
     "aws-sdk": "^2.1088.0",
     "axios": "^0.26.0",
     "express": "^4.17.3",
