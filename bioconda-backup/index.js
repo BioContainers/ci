@@ -78,7 +78,7 @@ function save_tags(container, tags, kind) {
 }
 
 async function send_report() {
-  console.log(`[report] total containers: ${$total}, docker errors: ${docker_errors}, quay errors: ${quay_errors}`);
+  console.log(`[report] total containers: ${total}, docker errors: ${docker_errors}, quay errors: ${quay_errors}`);
   if(!config.mail.smtp) {
     console.log('no mail configured, skipping report');
     return;
@@ -619,4 +619,5 @@ getContainers(options).then((containers) => {
   console.error('oopps!', err, docker_errors, quay_errors);
   process.exit(1);
 })
+
 
