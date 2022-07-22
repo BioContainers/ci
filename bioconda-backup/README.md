@@ -6,10 +6,12 @@ Also add security scan
 
 Support full scan update or update from last repo check
 
-## setup
+## requirements
 
 * nodejs
 * aws cli and aws credentials set in ~/.aws
+
+## setup
 
     ls ~/.aws
     config  credentials
@@ -17,6 +19,7 @@ Support full scan update or update from last repo check
     # config
     [default]
     region = us-east-1
+
     # credentials
     [default]
     aws_access_key_id =
