@@ -425,7 +425,7 @@ async function doTheStuff(container, tag, quay, scan_options) {
   try {
     if(scan_options.security) {
       if(!scan_options.dry) {
-      await getScanReport(container, tag, quay);
+        await getScanReport(container, tag, quay);
       } else {
         console.log('[security] should scan for report', container, tag)
       }
@@ -433,7 +433,7 @@ async function doTheStuff(container, tag, quay, scan_options) {
   } catch(err) {
     is_error = true
     console.error('[docker] error', container, err.message)
-    errors.push(`[docker][security] ${container}: ${err.message}`)
+    // errors.push(`[docker][security] ${container}: ${err.message}`)
   }
   try {    
     if(scan_options.backup || scan_options.aws) {
@@ -442,7 +442,7 @@ async function doTheStuff(container, tag, quay, scan_options) {
   } catch(err) {
     is_error = true
     console.error('[docker] error', container, err.message)
-    errors.push(`[docker][backup] ${container}: ${err.message}`)
+    // errors.push(`[docker][backup] ${container}: ${err.message}`)
   }
   if (is_error) {
     docker_errors++;

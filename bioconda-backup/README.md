@@ -28,3 +28,10 @@ Support full scan update or update from last repo check
 ## run
 
 node index.js --help
+
+
+## example
+
+backup conda (quay.io) containers to aws since last run
+
+node index.js --aws --conda --updated
