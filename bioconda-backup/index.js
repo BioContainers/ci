@@ -14,7 +14,9 @@ const { json } = require('express');
 const biocontainers = 'https://github.com/BioContainers/containers.git';
 const bioconda = 'https://github.com/bioconda/bioconda-recipes.git';
 
-var config = yaml_config.load('config.yml');
+const cfgpath = process.env.CONFIG !== undefined ? process.env.CONFIG : 'config.yml';
+
+const config = yaml_config.load(cfgpath);
 
 const s3 = new AWS.S3({
   endpoint: config.s3.endpoint,
@@ -91,7 +93,7 @@ async function send_report() {
 
   let now = Date.now();
   
-  var mailOptions = {
+  let mailOptions = {
     from: config.mail.from,
     to: config.mail.to,
     subject: `[biocontainers][${now.toString()}] sync report`,
@@ -137,7 +139,9 @@ async function repoFiles(kind='biocontainers', do_scan=false) {
         for (const patch of patches) {
             files.push(patch.newFile().path());
         }
-        return files;
+        // remove duplicates
+        let uniqFiles = [...new Set(files)]
+        return uniqFiles;
 
     }
     console.debug('take all');
@@ -590,6 +594,16 @@ async function getContainers(scan_options) {
   
 }
 
+
+if(fs.existsSync(`${config.workdir}/sync.lock`)) {
+  console.error('Process is already running (sync.lock), exiting....')
+  process.exit(1)
+} else {
+  fs.writeFileSync(`${config.workdir}/sync.lock`, '')
+}
+
+
+
 getContainers(options).then((containers) => {
   let ts = new Date()
   console.log(`[containers][list][date=${ts.toLocaleString()}] ${containers.length} to handle!`)
@@ -614,9 +628,11 @@ getContainers(options).then((containers) => {
   return send_report()
 }).then(() => {
   console.log('done', total, docker_errors, quay_errors);
+  fs.unlinkSync(`${config.workdir}/sync.lock`);
   process.exit(0);
 }).catch(err => {
   console.error('oopps!', err, docker_errors, quay_errors);
+  fs.unlinkSync(`${config.workdir}/sync.lock`);
   process.exit(1);
 })
 
