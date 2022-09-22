@@ -198,7 +198,6 @@ async function getDockerhubTags(container, scan_options) {
     } catch(err) {
       console.error('[dockerhub][tags] error', err.response.status, err.response.statusText);
       docker_errors++;
-      errors.push(`[docker][fetch] ${container}`)
       break;
     }
   }
