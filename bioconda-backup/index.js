@@ -108,15 +108,21 @@ async function send_report() {
 
 }
 
-async function repoFiles(kind='biocontainers', do_scan=false) {
+async function repoFiles(kind='biocontainers', scan_options) {
+    let do_scan = !scan_options.updated;
     let destDir = `${config.workdir}/${kind}`;
     let lastCommit = null;
+    if(scan_options.gitSha) {
+      lastCommit = scan_options.gitSha;
+    }
     if (fs.existsSync(destDir)) {
+      if(lastCommit === null) {
         let existingRepo = await Git.Repository.open(destDir);
         let bc = await existingRepo.getBranchCommit('master');
         lastCommit = bc.sha();
-        console.log('existing, last commit', kind, lastCommit);
-        fs.rmdirSync(destDir, {recursive: true, force: true})
+      }
+      console.log('existing, last commit', kind, lastCommit);
+      fs.rmdirSync(destDir, {recursive: true, force: true})
         //fs.rmSync(destDir, {recursive: true});
     } 
     let repoUrl = kind == 'biocontainers' ? biocontainers : bioconda;
@@ -526,7 +532,7 @@ function scan(kind, scan_options) {
   if(kind == 'bioconda' && !scan_options.conda) {
     return []
   }
-  return repoFiles(kind, !scan_options.updated)
+  return repoFiles(kind, scan_options)
 }
 
 // let dockerhubImages = [];
@@ -543,6 +549,7 @@ const options = yargs
  .options("n", {alias: "use", describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
  .option("d", { alias: "dry", describe: "dry run, do not execute", type: "boolean"})
  .option("f", { alias: "file", describe: "file path to containers/tags list"})
+ .option("g", {alias: "gitSha", describe: "like updated, but scan from related scan sha for updated containers"})
  .argv;
 
 
