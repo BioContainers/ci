@@ -51,7 +51,11 @@ const getRepoFiles = function(dirPath, arrayOfFiles) {
 }
 
 function save_tags(container, tags, kind) {
-  let dest = `/${config.meta.path}/${container}_tags.json`
+  if(!fs.existsSync(config.meta.path)) {
+    console.debug('meta path does not exists, skipping save_tags')
+    return
+  }
+  let dest = `${config.meta.path}/${container}_tags.json`
   let data = {
       name: container,
       docker: [],
@@ -112,7 +116,8 @@ async function repoFiles(kind='biocontainers', do_scan=false) {
         let bc = await existingRepo.getBranchCommit('master');
         lastCommit = bc.sha();
         console.log('existing, last commit', kind, lastCommit);
-        fs.rmSync(destDir, {recursive: true});
+        fs.rmdirSync(destDir, {recursive: true, force: true})
+        //fs.rmSync(destDir, {recursive: true});
     } 
     let repoUrl = kind == 'biocontainers' ? biocontainers : bioconda;
     await Git.Clone(repoUrl, destDir);
@@ -540,9 +545,6 @@ const options = yargs
  .option("f", { alias: "file", describe: "file path to containers/tags list"})
  .argv;
 
-if(fs.existsSync(`${config.workdir}/biocontainers.json`)) {
-  fs.unlinkSync(`${config.workdir}/biocontainers.json`);
-}
 
 async function getContainers(scan_options) {
   if(scan_options.use){
@@ -599,6 +601,10 @@ if(fs.existsSync(`${config.workdir}/sync.lock`)) {
   process.exit(1)
 } else {
   fs.writeFileSync(`${config.workdir}/sync.lock`, '')
+}
+
+if(fs.existsSync(`${config.workdir}/biocontainers.json`)) {
+  fs.unlinkSync(`${config.workdir}/biocontainers.json`);
 }
 
 
