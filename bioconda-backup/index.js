@@ -26,6 +26,8 @@ const s3 = new AWS.S3({
 });
 const registry = config.registry.host
 
+const containerFileList = 'biocontainers_' + Date.now() + '.json'
+
 var docker_errors = 0;
 var quay_errors = 0;
 var last_login = 0;
@@ -477,7 +479,7 @@ async function dockerhub(containers, scan_options) {
       console.log('[docker]', c);
       if(!tags || tags.length==0) {
         tags = await getDockerhubTags(c, scan_options);
-        await fs.writeFileSync(`${config.workdir}/biocontainers.json`, JSON.stringify({name: c, tags: tags, type: 'docker'}) + "\n", {flag: 'a+'});
+        await fs.writeFileSync(`${config.workdir}/${containerFileList}`, JSON.stringify({name: c, tags: tags, type: 'docker'}) + "\n", {flag: 'a+'});
       }
     } catch(err) {
       docker_errors++;
@@ -508,7 +510,7 @@ async function quayio(containers, scan_options) {
     try {
       if(!tags || tags.length==0) {
         tags = await getQuayioTags(c, scan_options);
-        await fs.writeFileSync(`${config.workdir}/biocontainers.json`, JSON.stringify({name: c, tags: tags, type: 'bioconda'})+"\n", {flag: 'a+'});
+        await fs.writeFileSync(`${config.workdir}/${containerFileList}`, JSON.stringify({name: c, tags: tags, type: 'bioconda'})+"\n", {flag: 'a+'});
       }
     } catch(err) {
       quay_errors++;
@@ -610,11 +612,6 @@ if(fs.existsSync(`${config.workdir}/sync.lock`)) {
   fs.writeFileSync(`${config.workdir}/sync.lock`, '')
 }
 
-if(fs.existsSync(`${config.workdir}/biocontainers.json`)) {
-  fs.unlinkSync(`${config.workdir}/biocontainers.json`);
-}
-
-
 
 getContainers(options).then((containers) => {
   let ts = new Date()
@@ -641,6 +638,7 @@ getContainers(options).then((containers) => {
 }).then(() => {
   console.log('done', total, docker_errors, quay_errors);
   fs.unlinkSync(`${config.workdir}/sync.lock`);
+  fs.unlinkSync(`${config.workdir}/${containerFileList}`)
   process.exit(0);
 }).catch(err => {
   console.error('oopps!', err, docker_errors, quay_errors);
