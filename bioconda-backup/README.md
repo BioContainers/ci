@@ -8,7 +8,7 @@ Support full scan update or update from last repo check
 
 ## requirements
 
-* nodejs
+* nodejs >= 12 (tested 16)
 * aws cli and aws credentials set in ~/.aws
 
 ## setup
