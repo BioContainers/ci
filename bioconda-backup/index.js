@@ -638,7 +638,9 @@ getContainers(options).then((containers) => {
 }).then(() => {
   console.log('done', total, docker_errors, quay_errors);
   fs.unlinkSync(`${config.workdir}/sync.lock`);
-  fs.unlinkSync(`${config.workdir}/${containerFileList}`)
+  if(fs.existsSync(`${config.workdir}/${containerFileList}`)) {
+    fs.unlinkSync(`${config.workdir}/${containerFileList}`)
+  }
   process.exit(0);
 }).catch(err => {
   console.error('oopps!', err, docker_errors, quay_errors);
