@@ -22,6 +22,13 @@ Set ssh config in ~/.ssh/config
         StrictHostKeyChecking no"
         IdentityFile /etc/biocontainers-ci/id_rsa
 
+## install
+
+As root:
+
+    pip install -r requirements.txt
+    pip install .
+
 ## run
 
 In repo clone:
