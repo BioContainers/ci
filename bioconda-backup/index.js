@@ -115,6 +115,7 @@ async function repoFiles(kind='biocontainers', scan_options) {
     let destDir = `${config.workdir}/${kind}`;
     let lastCommit = null;
     if(scan_options.gitSha) {
+      console.log(`scan git commit ${scan_option.gitSha}`);
       lastCommit = scan_options.gitSha;
     }
     if (fs.existsSync(destDir)) {
