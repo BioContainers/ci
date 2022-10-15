@@ -115,7 +115,7 @@ async function repoFiles(kind='biocontainers', scan_options) {
     let destDir = `${config.workdir}/${kind}`;
     let lastCommit = null;
     if(scan_options.gitSha) {
-      console.log(`scan git commit ${scan_option.gitSha}`);
+      console.log(`scan git commit ${scan_options.gitSha}`);
       lastCommit = scan_options.gitSha;
     }
     if (fs.existsSync(destDir)) {
@@ -173,7 +173,7 @@ async function getQuayioTags(container, scan_options) {
   let page=1;
   let url = `${baseurl}?page=${page}`;
   while(true) {
-    console.debug('call', url)
+    console.debug('[quay.io] call', url)
     try {
       let res = await axios.get(url);
       if(res.data.tags.length == 0) {
@@ -185,7 +185,7 @@ async function getQuayioTags(container, scan_options) {
     } catch(err) {
       if(err.response.status != 404) {
         quay_errors++;
-        console.error('[quayio][tags] error', err.response.status, err.response.statusText);
+        console.error('[quay.io][tags] error', err.response.status, err.response.statusText);
       }
       save_tags(container, tags, 'bioconda');
       return tags;
@@ -199,7 +199,7 @@ async function getDockerhubTags(container, scan_options) {
   let tags = [];
   let url = `https://hub.docker.com/v2/repositories/biocontainers/${container}/tags`;
   while(true) {
-    console.debug('call', url)
+    console.debug('[docker] call', url)
     try {
       let res = await axios.get(url);
       res.data.results.forEach(tag => {
@@ -506,7 +506,7 @@ async function quayio(containers, scan_options) {
     if(c === undefined || c === null) {
       continue;
     }
-    console.log('[quay.io]', c);
+    console.log('[quay.io][container]', c);
     let tags = containers[i].tags;
     try {
       if(!tags || tags.length==0) {
@@ -547,12 +547,12 @@ const options = yargs
  .option("b", { alias: "backup", describe: "Backup containers to internal registry", type: "boolean"})
  .option("s", { alias: "security", describe: "Security scan updates", type: "boolean"})
  .option("u", { alias: "updated", describe: "Scan only updated containers/tags, else scan all", type: "boolean"})
- .options("c", {alias: "conda", describe: "check bioconda", type: "boolean"})
- .options("g", {alias: "docker", describe: "check biocontainers dockerfiles", type: "boolean"})
- .options("n", {alias: "use", describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
- .option("d", { alias: "dry", describe: "dry run, do not execute", type: "boolean"})
+ .options("c", { alias: "conda", describe: "check bioconda", type: "boolean"})
+ .options("d", { alias: "docker", describe: "check biocontainers dockerfiles", type: "boolean"})
+ .options("use", { describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
+ .option("dry", { describe: "dry run, do not execute", type: "boolean"})
  .option("f", { alias: "file", describe: "file path to containers/tags list"})
- .option("g", {alias: "gitSha", describe: "like updated, but scan from related scan sha for updated containers"})
+ .option("git", {alias: "gitSha", describe: "like updated, but scan from related scan sha for updated containers"})
  .argv;
 
 
@@ -627,7 +627,12 @@ getContainers(options).then((containers) => {
     await doTheStuff(container.container, container.tag, container.quay, options)
   })
 }).then((res) => {
-  console.log('[doTheStuff]', res.results, res.errors)
+  console.log('[doTheStuff]', res.results.length, res.errors.length)
+  if (res.errors.length > 0) {
+    res.errors.forEach(err => {
+      console.error('sync error', err)
+    });
+  }
   // cleanup
   try {
     execSync(`docker image prune -a`);
