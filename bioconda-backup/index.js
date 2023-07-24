@@ -585,19 +585,31 @@ async function getContainers(scan_options) {
   let containers = []
   let dockerfiles = await scan('biocontainers', scan_options)
   let docker_containers = []
+  let docker_managed = {}
   for(let i=0;i<dockerfiles.length;i++){
     let elts = dockerfiles[i].split('/');
+    if(docker_managed[elts[elts.length-3]] !== undefined) {
+      continue
+    }
     docker_containers.push({'name': elts[elts.length-3], 'tags': [], quay: false})
+    docker_managed[elts[elts.length-3]] = true
   }
+  docker_managed = null
   let data = await dockerhub(docker_containers, scan_options)
   containers = containers.concat(data)
 
   let condafiles = await scan('bioconda', scan_options)
   let conda_containers = []
+  let conda_managed = {}
   for(let i=0;i<condafiles.length;i++){
     let elts = condafiles[i].split('/');
+    if(conda_managed[elts[elts.length-2]] !== undefined) {
+      continue
+    }
     conda_containers.push({'name': elts[elts.length-2], 'tags': [], quay: true});
+    conda_managed[elts[elts.length-2]] = true
   }
+  conda_managed = null
   data = await quayio(conda_containers, scan_options)
   containers = containers.concat(data)
 
