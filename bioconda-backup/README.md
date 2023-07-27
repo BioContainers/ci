@@ -53,6 +53,10 @@ manually the failed job (better in background...):
 json files are created at container lookup step, and deleted on success. In case of job failure, json file will be present and ease replay.
 final solution is to delete **workdir**/bioconda|biocontainer and run without the --updated option to check for **all** containers (very long job....)
 
+If biocontainers_xxx.json has many lines, this can take long and block further CI in the meanwhile. Manual exec can be done on an extra VM:
+
+    nohup node index.js --backup --aws --conda --file /mnt/data/sync/biocontainers_1668381130944.json&
+
 ## example
 
 ### backup conda containers to registry AND aws
