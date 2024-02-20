@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
 
-from .tool import Tool
+from tool import Tool
 
+logging.basicConfig()
+logging.root.setLevel(logging.INFO)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

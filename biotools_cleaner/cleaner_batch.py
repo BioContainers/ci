@@ -2,8 +2,12 @@
 
 import argparse
 import pathlib
+import logging
 
-from .tool import Tool
+from tool import Tool
+
+logging.basicConfig()
+# logging.root.setLevel(logging.INFO)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -13,5 +17,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for path in pathlib.Path(args.rse_repo).rglob("biocontainers.yaml"):
-        tool = Tool(path.name)
+        tool = Tool(str(path.resolve()))
         tool.write_yaml(args.rse_repo, dry_run=args.dry_run, remove_input=args.cleanup)
