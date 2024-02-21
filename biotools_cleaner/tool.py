@@ -16,7 +16,7 @@ class Tool:
 
         logging.info('Processing ' + tool_yaml)
 
-    def write_yaml(self, output_dir, dry_run=False, remove_input=False):
+    def write_yaml(self, output_dir, dry_run=False, remove_input=False, add_biotool=False):
         to_merge = {}
         if not self.yaml_data.get('softwares'):
             logging.error('"softwares" key not found or empty')
@@ -48,6 +48,9 @@ class Tool:
             if tool_name in to_merge:
                 biotool_id = to_merge[tool_name]
                 logging.warn("Assuming {} biotool id is {}".format(tool_name, biotool_id))
+                if add_biotool:
+                    logging.warn("Adding biotool label")
+                    values['labels']['extra.identifiers.biotools'] = biotool_id
 
             data[biotool_id].append({"tool": tool_name, "value": values})
 
