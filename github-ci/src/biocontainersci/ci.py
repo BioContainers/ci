@@ -20,7 +20,7 @@ class CI:
 
     def __init__(self, config):
         self.config = config
-        self.docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        self.docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock', timeout=600)
         # urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def name(self, f):
@@ -306,6 +306,7 @@ class CI:
 
             # singularity
             self.singularity(f)
+            logging.info('Singularity build done')
 
             status = True
         except Exception as e:
@@ -324,7 +325,11 @@ class CI:
             self.docker_client.images.remove(image=self.local_name(f), force=True)
         except Exception:
             pass
+
+        logging.info('Docker images prune')
         self.docker_client.images.prune()
+
+        logging.info('Docker containers prune')
         self.docker_client.containers.prune()
         return status
         
