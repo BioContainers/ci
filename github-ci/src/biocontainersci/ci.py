@@ -24,25 +24,25 @@ class CI:
         self.docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock', timeout=600)
         # urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    def name(self, f):
+    def name(self, f, is_arm=False):
         '''
         Container name, not local version suffix
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['version']
+        return 'biocontainers/' + f['container'] + ':' + f['version'] + "_arm" if is_arm else ""
 
-    def dockerhub_name(self, f):
+    def dockerhub_name(self, f, is_arm=False):
         '''
         Docker registry name
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['tag']
+        return 'biocontainers/' + f['container'] + ':' + f['tag'] + "_arm" if is_arm else ""
 
-    def local_name(self, f):
+    def local_name(self, f, is_arm=False):
         '''
         Local registry name
         '''
         if not self.config['registry']['url']:
             return None
-        return self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag']
+        return self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag'] + "_arm" if is_arm else ""
 
     def run_test(self, f: dict, test: str):
         '''
@@ -212,6 +212,99 @@ class CI:
 
     def workdir(self):
         return os.environ.get('GITHUB_WORKSPACE', os.getcwd())
+
+    '''
+    Execute minimal CI workflow for arm build
+    * build container
+    '''
+    def workflow_arm(self, f):
+        base_container_name = self.name(f, is_arm=True)
+        logging.info('[ci][build]ARM ' + base_container_name)
+
+        build_logs = []
+        try:
+            (docker_image, build_logs) = self.docker_client.images.build(
+                path=os.path.join(self.workdir(), f['container'], f['version']),
+                tag=base_container_name,
+                squash=False,
+                nocache=True,
+                rm=True,
+                platform="linux/arm64"
+            )
+            self.docker_logs(build_logs)
+        except Exception as e:
+            self.docker_logs(build_logs)
+            logging.exception('[ci][build]ARM error ' + str(e))
+            return False
+
+        status = False
+        try:
+            labels = docker_image.labels
+            logging.info('[ci][build][labels] ' + json.dumps(labels))
+            status = self.check_labels(f, labels)
+            if not status:
+                return False
+            logging.info('[ci][build] ' + json.dumps(f))
+
+            # tag for docker and local registry
+            logging.info("tag for dockerhub")
+            self.docker_client.images.build(
+                path=os.path.join(self.workdir(), f['container'], f['version']),
+                tag=self.dockerhub_name(f, is_arm=True),
+                squash=False,
+                nocache=False,
+                rm=True,
+                platform="linux/arm64"
+
+            )
+            if self.local_name(f):
+                logging.info("tag for local registry")
+                self.docker_client.images.build(
+                    path=os.path.join(self.workdir(), f['container'], f['version']),
+                    tag=self.local_name(f, is_arm=True),
+                    squash=False,
+                    nocache=False,
+                    rm=True,
+                    platform="linux/arm64"
+                )
+
+            # push
+            if self.config['dockerhub']['username']:
+                self.docker_push(self.dockerhub_name(f, is_arm=True), auth_config={
+                    'username': self.config['dockerhub']['username'],
+                    'password': self.config['dockerhub']['password']
+                })
+            else:
+                logging.info('no dockerhub credentials, skipping')
+            if self.local_name(f):
+                self.docker_push(self.local_name(f, is_arm=True))
+            else:
+                logging.info('no local registry, skipping')
+
+            status = True
+        except Exception as e:
+            logging.exception('[ci][workflow] error: ' + str(e))
+            status = False
+
+        try:
+            self.docker_client.images.remove(image=self.name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+        try:
+            self.docker_client.images.remove(image=self.dockerhub_name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+        try:
+            self.docker_client.images.remove(image=self.local_name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+
+        logging.info('Docker images prune')
+        self.docker_client.images.prune()
+
+        logging.info('Docker containers prune')
+        self.docker_client.containers.prune()
+        return status
 
     '''
     Execute CI workflow
