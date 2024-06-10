@@ -9,6 +9,7 @@ import json
 import boto3
 # import botocore.vendored.requests.packages.urllib3 as urllib3
 
+from python_on_whales import docker as docker_whale
 
 from biocontainersci.utils import send_github_pr_comment, send_status, BiocontainersCIException
 from biocontainersci.biotools import Biotools
@@ -212,6 +213,38 @@ class CI:
 
     def workdir(self):
         return os.environ.get('GITHUB_WORKSPACE', os.getcwd())
+
+    def build_manifest(self, f):
+        # We want to override the amd manifest with amd + arm
+        # Start with dockerhub
+        hub_manifest = None
+        local_manifest = None
+
+        if self.config['dockerhub']['username']:
+            # Might need to login here
+            hub_manifest = docker_whale.manifest.create(
+                self.dockerhub_name(f),
+                [self.dockerhub_name(f), self.dockerhub_name(f, is_arm=True)],
+                amend=True
+            )
+
+        # Now, local hub:
+        if self.local_name(f):
+            local_manifest = docker_whale.manifest.create(
+                self.local_name(f),
+                [self.local_name(f), self.local_name(f, is_arm=True)],
+                amend=True
+            )
+
+        if hub_manifest:
+            docker_whale.manifest.push(hub_manifest)
+        if local_manifest:
+            docker_whale.manifest.push(local_manifest)
+
+        if hub_manifest:
+            docker_whale.manifest.remove(hub_manifest)
+        if local_manifest:
+            docker_whale.manifest.remove(local_manifest)
 
     '''
     Execute minimal CI workflow for arm build
