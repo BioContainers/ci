@@ -239,7 +239,7 @@ class CI:
             hub_manifest = docker_whale.manifest.create(
                 self.dockerhub_name(f),
                 [self.dockerhub_name(f), self.dockerhub_name(f, is_arm=True)],
-                amend=True
+                ammend=True
             )
 
         # Now, local hub:
@@ -276,7 +276,8 @@ class CI:
                 squash=False,
                 nocache=True,
                 rm=True,
-                platform="linux/arm64"
+                platform="linux/arm64",
+                pull=True
             )
             self.docker_logs(build_logs)
         except Exception as e:
@@ -301,8 +302,7 @@ class CI:
                 squash=False,
                 nocache=False,
                 rm=True,
-                platform="linux/arm64"
-
+                platform="linux/arm64",
             )
             if self.local_name(f):
                 logging.info("tag for local registry")
@@ -384,7 +384,8 @@ class CI:
                 tag=base_container_name,
                 squash=False,
                 nocache=True,
-                rm=True
+                rm=True,
+                pull=True
             )
             self.docker_logs(build_logs)
         except Exception as e:
