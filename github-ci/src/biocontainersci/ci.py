@@ -29,13 +29,23 @@ class CI:
         '''
         Container name, not local version suffix
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['version'] + "_arm" if is_arm else ""
+
+        base_name = 'biocontainers/' + f['container'] + ':' + f['version']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
 
     def dockerhub_name(self, f, is_arm=False):
         '''
         Docker registry name
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['tag'] + "_arm" if is_arm else ""
+
+        base_name = 'biocontainers/' + f['container'] + ':' + f['tag']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
 
     def local_name(self, f, is_arm=False):
         '''
@@ -43,8 +53,12 @@ class CI:
         '''
         if not self.config['registry']['url']:
             return None
-        return self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag'] + "_arm" if is_arm else ""
 
+        base_name = self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
     def run_test(self, f: dict, test: str):
         '''
         Execute a test against container
