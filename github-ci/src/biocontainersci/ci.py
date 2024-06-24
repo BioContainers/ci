@@ -279,6 +279,11 @@ class CI:
             logging.exception('[ci][build]ARM error ' + str(e))
             return False
 
+        arch = docker_image.attrs.get('Architecture', "")
+        if not (arch and "arm64" in arch):
+            # Failed to build, fail silently
+            return False
+
         status = False
         try:
             labels = docker_image.labels
