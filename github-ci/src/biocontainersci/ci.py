@@ -247,7 +247,7 @@ class CI:
             local_manifest = docker_whale.manifest.create(
                 self.local_name(f),
                 [self.local_name(f), self.local_name(f, is_arm=True)],
-                amend=True
+                ammend=True
             )
 
         if hub_manifest:
