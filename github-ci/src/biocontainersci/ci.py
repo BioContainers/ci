@@ -251,14 +251,8 @@ class CI:
             )
 
         if hub_manifest:
-            docker_whale.manifest.push(hub_manifest)
-        if local_manifest:
-            docker_whale.manifest.push(local_manifest)
-
-        if hub_manifest:
+            docker_whale.manifest.push(self.dockerhub_name(f), purge=True)
             docker_whale.manifest.remove(hub_manifest)
-        if local_manifest:
-            docker_whale.manifest.remove(local_manifest)
 
     '''
     Execute minimal CI workflow for arm build
