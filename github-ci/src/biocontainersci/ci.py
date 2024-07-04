@@ -259,6 +259,9 @@ class CI:
     * build container
     '''
     def workflow_arm(self, f):
+        if self.config['pull_number']:
+                logging.info("[ci][build] Pull request, skip arm")
+                return False
         base_container_name = self.name(f, is_arm=True)
         logging.info('[ci][build]ARM ' + base_container_name)
 
