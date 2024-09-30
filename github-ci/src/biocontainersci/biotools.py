@@ -148,53 +148,58 @@ class Biotools:
         try:
             (repo, branch) = self.repo_setup(branch)
 
-            tmpdir =  self.REPO + '/data/'
-            dirname = tmpdir + name 
-            biocontainers_file = tmpdir + name + '/biocontainers.yaml'
+            all_tmpdir = self.REPO + '/import/biocontainers/'
+            if not os.path.exists(all_tmpdir):
+                os.makedirs(all_tmpdir)
+            files_to_write = [all_tmpdir + '{}.biocontainers.yaml'.format(name)]
             if biotools is not None:
-                dirname = tmpdir + biotools
-                biocontainers_file = tmpdir + biotools + '/biocontainers.yaml'
-
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+                biotool_tmpdir = self.REPO + '/data/{}/'.format(biotools)
+                if not os.path.exists(biotool_tmpdir):
+                    os.makedirs(biotool_tmpdir)
+                files_to_write.append(biotool_tmpdir + '{}.biocontainers.yaml'.format(name))
 
             clabels = {}
             for k, v in labels.items():
                 clabels[k] = v
 
             data = {
-                    'software': name,
-                    'labels': deepcopy(clabels),
-                    'versions': []
-                    }
+                'software': name,
+                'labels': deepcopy(clabels),
+                'versions': []
+            }
+
             softwares = {'softwares': {}}
             softwares["softwares"][name] = data
-            if os.path.exists(biocontainers_file):
-                with open(biocontainers_file) as fp:
-                    softwares = load(fp, Loader=Loader)
 
-            if name not in softwares["softwares"]:
-                softwares["softwares"][name] = data
+            for file_path in files_to_write:
 
-            exists = False
-            for download in softwares["softwares"][name]["versions"]:
-                if download["version"] == container_version:
-                    exists = True
-                    break
+                if os.path.exists(file_path):
+                    with open(file_path) as fp:
+                        softwares = load(fp, Loader=Loader)
 
-            if not exists:
-                new_download = {
-                    "url": "biocontainers/" + name + ":" + container_version,
-                    "version": container_version,
-                    "type": "Container file",
-                    "labels": deepcopy(clabels)
-                }
-                softwares["softwares"][name]["versions"].append(new_download)
+                if name not in softwares["softwares"]:
+                    softwares["softwares"][name] = data
 
-                with open(biocontainers_file, 'w') as fp:
-                    dump(softwares, fp, Dumper=Dumper)
+                exists = False
+                for download in softwares["softwares"][name]["versions"]:
+                    if download["version"] == container_version:
+                        exists = True
+                        break
 
-                repo.index.add([biocontainers_file])
+                if not exists:
+                    new_download = {
+                        "url": "biocontainers/" + name + ":" + container_version,
+                        "version": container_version,
+                        "type": "Container file",
+                        "labels": deepcopy(clabels)
+                    }
+                    softwares["softwares"][name]["versions"].append(new_download)
+
+                    with open(file_path, 'w') as fp:
+                        dump(softwares, fp, Dumper=Dumper)
+
+                    repo.index.add([file_path])
+            if exists:
                 if biotools is not None:
                     repo.index.commit("Add version for %s:%s" % (biotools, container_version))
                 else:
