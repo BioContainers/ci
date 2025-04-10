@@ -9,9 +9,11 @@ import json
 import boto3
 # import botocore.vendored.requests.packages.urllib3 as urllib3
 
+from python_on_whales import docker as docker_whale
 
 from biocontainersci.utils import send_github_pr_comment, send_status, BiocontainersCIException
 from biocontainersci.biotools import Biotools
+
 
 class CI:
     '''
@@ -23,33 +25,47 @@ class CI:
         self.docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock', timeout=600)
         # urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    def name(self, f):
+    def name(self, f, is_arm=False):
         '''
         Container name, not local version suffix
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['version']
 
-    def dockerhub_name(self, f):
+        base_name = 'biocontainers/' + f['container'] + ':' + f['version']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
+
+    def dockerhub_name(self, f, is_arm=False):
         '''
         Docker registry name
         '''
-        return 'biocontainers/' + f['container'] + ':' + f['tag']
 
-    def local_name(self, f):
+        base_name = 'biocontainers/' + f['container'] + ':' + f['tag']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
+
+    def local_name(self, f, is_arm=False):
         '''
         Local registry name
         '''
         if not self.config['registry']['url']:
             return None
-        return self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag']
 
-    def run_test(self, f:dict, test: str):
+        base_name = self.config['registry']['url'] + '/biocontainers/' + f['container'] + ':' + f['tag']
+        if is_arm:
+            base_name += "_arm"
+
+        return base_name
+    def run_test(self, f: dict, test: str):
         '''
         Execute a test against container
         '''
         logging.info("[ci][test] run test: " + test)
         base_container_name = self.name(f)
-        volumes={}
+        volumes = {}
         volumes[self.workdir()] = {'bind': '/biocontainers', 'mode': 'ro'}
         logs = self.docker_client.containers.run(
             base_container_name,
@@ -93,7 +109,6 @@ class CI:
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     logging.info(line)
-
 
     def docker_push(self, repo, auth_config=None):
         '''
@@ -139,7 +154,6 @@ class CI:
             auto_remove=True
         )
         '''
-
 
     def anchore(self, f):
         '''
@@ -189,29 +203,157 @@ class CI:
             logging.exception('[ci][singularity] convert failed: ' + str(e))
             raise BiocontainersCIException('singularity conversion failed')
 
-
         if self.config['dry']:
             logging.info('[ci][singularity] dry mode, do not push image')
             return
         try:
-            s3_client = boto3.client(service_name="s3", region_name=self.config['s3']['region'],
-                            endpoint_url=self.config['s3']['endpoint'],
-                            verify=False,
-                            aws_access_key_id = self.config['s3']['access_key'],
-                            aws_secret_access_key=self.config['s3']['secret_access_key'])
-            s3_client.upload_file(sing_image, self.config['s3']['bucket'], 'SingImgsRepo/'+f['container'] + '/' + f['tag'] + '/' + f['container'] + '_' + f['tag'] + '.sif')
-        except Exception as e:
+            s3_client = boto3.client(
+                service_name="s3",
+                region_name=self.config['s3']['region'],
+                endpoint_url=self.config['s3']['endpoint'],
+                verify=False,
+                aws_access_key_id=self.config['s3']['access_key'],
+                aws_secret_access_key=self.config['s3']['secret_access_key'])
+
+            s3_client.upload_file(sing_image, self.config['s3']['bucket'], 'SingImgsRepo/' + f['container'] + '/' + f['tag'] + '/' + f['container'] + '_' + f['tag'] + '.sif')
+        except Exception:
             os.unlink(sing_image)
             raise BiocontainersCIException('singularity s3 upload failed')
         # need to be root...
         os.unlink(sing_image)
-        #s3 = boto3.resource('s3')
-        #data = open('/tmp/singimage', 'rb')
-        #s3.Bucket(self.config['s3']['bucket']).put_object(Key='SingImgsRepo/'+f['container'] + '/' + f['tag'] + '/' + f['container'] + '_' + f['tag'] + '.img', Body=data)
-
+        # s3 = boto3.resource('s3')
+        # data = open('/tmp/singimage', 'rb')
+        # s3.Bucket(self.config['s3']['bucket']).put_object(Key='SingImgsRepo/'+f['container'] + '/' + f['tag'] + '/' + f['container'] + '_' + f['tag'] + '.img', Body=data)
 
     def workdir(self):
         return os.environ.get('GITHUB_WORKSPACE', os.getcwd())
+
+    def build_manifest(self, f):
+        # We want to override the amd manifest with amd + arm
+        # Start with dockerhub
+        hub_manifest = None
+        local_manifest = None
+
+        if self.config['dockerhub']['username']:
+            # Might need to login here
+            hub_manifest = docker_whale.manifest.create(
+                self.dockerhub_name(f),
+                [self.dockerhub_name(f), self.dockerhub_name(f, is_arm=True)],
+                ammend=True
+            )
+
+        # Now, local hub:
+        if self.local_name(f):
+            local_manifest = docker_whale.manifest.create(
+                self.local_name(f),
+                [self.local_name(f), self.local_name(f, is_arm=True)],
+                ammend=True
+            )
+
+        if hub_manifest:
+            docker_whale.manifest.push(self.dockerhub_name(f), purge=True)
+            docker_whale.manifest.remove(hub_manifest)
+
+    '''
+    Execute minimal CI workflow for arm build
+    * build container
+    '''
+    def workflow_arm(self, f):
+        if self.config['pull_number']:
+                logging.info("[ci][build] Pull request, skip arm")
+                return False
+        base_container_name = self.name(f, is_arm=True)
+        logging.info('[ci][build]ARM ' + base_container_name)
+
+        build_logs = []
+        try:
+            (docker_image, build_logs) = self.docker_client.images.build(
+                path=os.path.join(self.workdir(), f['container'], f['version']),
+                tag=base_container_name,
+                squash=False,
+                nocache=True,
+                rm=True,
+                platform="linux/arm64",
+                pull=True
+            )
+            self.docker_logs(build_logs)
+        except Exception as e:
+            self.docker_logs(build_logs)
+            logging.exception('[ci][build]ARM error ' + str(e))
+            return False
+
+        arch = docker_image.attrs.get('Architecture', "")
+        if not (arch and "arm64" in arch):
+            # Failed to build, fail silently
+            return False
+
+        status = False
+        try:
+            labels = docker_image.labels
+            logging.info('[ci][build][labels] ' + json.dumps(labels))
+            status = self.check_labels(f, labels)
+            if not status:
+                return False
+            logging.info('[ci][build] ' + json.dumps(f))
+
+            # tag for docker and local registry
+            logging.info("tag for dockerhub")
+            self.docker_client.images.build(
+                path=os.path.join(self.workdir(), f['container'], f['version']),
+                tag=self.dockerhub_name(f, is_arm=True),
+                squash=False,
+                nocache=False,
+                rm=True,
+                platform="linux/arm64",
+            )
+            if self.local_name(f):
+                logging.info("tag for local registry")
+                self.docker_client.images.build(
+                    path=os.path.join(self.workdir(), f['container'], f['version']),
+                    tag=self.local_name(f, is_arm=True),
+                    squash=False,
+                    nocache=False,
+                    rm=True,
+                    platform="linux/arm64"
+                )
+
+            # push
+            if self.config['dockerhub']['username']:
+                self.docker_push(self.dockerhub_name(f, is_arm=True), auth_config={
+                    'username': self.config['dockerhub']['username'],
+                    'password': self.config['dockerhub']['password']
+                })
+            else:
+                logging.info('no dockerhub credentials, skipping')
+            if self.local_name(f):
+                self.docker_push(self.local_name(f, is_arm=True))
+            else:
+                logging.info('no local registry, skipping')
+
+            status = True
+        except Exception as e:
+            logging.exception('[ci][workflow] error: ' + str(e))
+            status = False
+
+        try:
+            self.docker_client.images.remove(image=self.name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+        try:
+            self.docker_client.images.remove(image=self.dockerhub_name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+        try:
+            self.docker_client.images.remove(image=self.local_name(f, is_arm=True), force=True)
+        except Exception:
+            pass
+
+        logging.info('Docker images prune')
+        self.docker_client.images.prune()
+
+        logging.info('Docker containers prune')
+        self.docker_client.containers.prune()
+        return status
 
     '''
     Execute CI workflow
@@ -227,12 +369,12 @@ class CI:
         # check for dockerfile
         with open(os.path.join(self.workdir(), f['container'], f['version'], 'Dockerfile'), 'r') as d:
             lines = d.readlines()
-            for l in lines:
-                if '.aws' in l:
+            for line in lines:
+                if '.aws' in line:
                     logging.error('[ci] private biocontainers-ci directory access in dockerfile forbiden')
                     send_github_pr_comment(self.config, 'Forbiden access to biocontainers-ci private files in Dockerfile')
                     raise BiocontainersCIException('private biocontainers-ci directory access in dockerfile forbiden')
-                if 'etc/biocontainers-ci' in l:
+                if 'etc/biocontainers-ci' in line:
                     logging.error('[ci] private biocontainers-ci directory access in dockerfile forbiden')
                     send_github_pr_comment(self.config, 'Forbiden access to biocontainers-ci directory in Dockerfile')
                     raise BiocontainersCIException('private biocontainers-ci directory access in dockerfile forbiden')
@@ -244,7 +386,8 @@ class CI:
                 tag=base_container_name,
                 squash=False,
                 nocache=True,
-                rm=True
+                rm=True,
+                pull=True
             )
             self.docker_logs(build_logs)
         except Exception as e:
@@ -312,7 +455,7 @@ class CI:
         except Exception as e:
             logging.exception('[ci][workflow] error: ' + str(e))
             status = False
-        
+
         try:
             self.docker_client.images.remove(image=self.name(f), force=True)
         except Exception:
@@ -332,25 +475,23 @@ class CI:
         logging.info('Docker containers prune')
         self.docker_client.containers.prune()
         return status
-        
-
 
     '''
     Check labels in docker image
     '''
-    def check_labels(self, f:dict, labels:dict):
+    def check_labels(self, f: dict, labels: dict):
         label_errors = []
         software = 'unknown'
         if 'software' not in labels or not labels['software']:
             label_errors.append('software label not present')
             status = False
         else:
-            software =  labels['software']
-            #labels['software'].strip()
-            pattern=re.compile("^([a-z0-9_-])+$")
+            software = labels['software']
+            # labels['software'].strip()
+            pattern = re.compile("^([a-z0-9_-])+$")
             if pattern.match(labels['software']) is None:
                 logging.warning('[ci][labels] ' + software + " has invalid name, using directory name")
-                software =  f['container']
+                software = f['container']
                 labels['container'] = f['container']
 
         if 'base_image' not in labels or not labels['base_image']:
@@ -419,7 +560,7 @@ class CI:
             else:
                 bio = requests.get('https://bio.tools/api/tool/' + str(software) + '/?format=json')
                 if bio.status_code != 404:
-                    send_github_pr_comment(self.config, 'Found a biotools entry matching the software name (https://bio.tools/' + labels['software']+ '), if this is the same software, please add the extra.identifiers.biotools label to your Dockerfile')
+                    send_github_pr_comment(self.config, 'Found a biotools entry matching the software name (https://bio.tools/' + labels['software'] + '), if this is the same software, please add the extra.identifiers.biotools label to your Dockerfile')
                 else:
                     send_github_pr_comment(self.config, 'No biotools label defined, please check if tool is not already defined in biotools (https://bio.tools) and add extra.identifiers.biotools label if it exists. If it is not defined, you can ignore this comment.')
 
@@ -434,7 +575,7 @@ class CI:
                     logging.info("biotools entry is ok")
 
             # Check if exists in conda
-            conda_url = 'https://bioconda.github.io/recipes/' + labels['software']+'/README.html'
+            conda_url = 'https://bioconda.github.io/recipes/' + labels['software'] + '/README.html'
             conda = requests.get(conda_url)
             if conda.status_code == 200:
                 send_github_pr_comment(self.config, 'Found an existing bioconda package for this software (' + conda_url + '), is this the same, then you should update the recipe in bioconda to avoid duplicates.')

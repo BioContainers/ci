@@ -5,20 +5,19 @@
 
 import shutil
 import requests
-import sys
 import os
 import logging
-import re
 import git
 import datetime
 from copy import deepcopy
-from yaml import load, dump
+from yaml import dump
 try:
-    from yaml import CLoader as Loader, CDumper as Dumper
+    from yaml import CDumper as Dumper
 except ImportError:
-    from yaml import Loader, Dumper
+    from yaml import Dumper
 
 from biocontainersci.utils import BiocontainersCIException
+
 
 class Biotools:
 
@@ -90,15 +89,15 @@ class Biotools:
         }
         github_url = 'https://api.github.com/repos/%s/pulls' % ("bio-tools/content")
         res = requests.post(
-                github_url,
-                json={
-                    'title': "biocontainers-bot metadata import PR",
-                    'head': branch,
-                    "base": "master"
-                },
-                headers=headers
+            github_url,
+            json={
+                'title': "biocontainers-bot metadata import PR",
+                'head': branch,
+                "base": "master"
+            },
+            headers=headers
         )
-        if not res.status_code in [200, 201]:
+        if res.status_code not in [200, 201]:
             logging.error("[biotools] Failed to create pull request: %s", res.text)
             return False
         pr = res.json()
@@ -107,13 +106,13 @@ class Biotools:
         github_url = 'https://api.github.com/repos/%s/issues/%d' % ("bio-tools/content", issue)
 
         res = requests.post(
-                github_url,
-                json={
-                    'labels': [self.BOT_LABEL],
-                },
-                headers=headers
+            github_url,
+            json={
+                'labels': [self.BOT_LABEL],
+            },
+            headers=headers
         )
-        if not res.status_code in [200]:
+        if res.status_code not in [200]:
             logging.error("Failed to add issue label: %d" % res.status_code)
 
         logging.info("Tagged issue: %d" % issue)
@@ -148,41 +147,34 @@ class Biotools:
         try:
             (repo, branch) = self.repo_setup(branch)
 
-            tmpdir =  self.REPO + '/data/'
-            dirname = tmpdir + name 
-            biocontainers_file = tmpdir + name + '/biocontainers.yaml'
+            all_tmpdir = self.REPO + '/import/biocontainers/'
+            if not os.path.exists(all_tmpdir):
+                os.makedirs(all_tmpdir)
+            files_to_write = [all_tmpdir + '{}.biocontainers.yaml'.format(name)]
             if biotools is not None:
-                dirname = tmpdir + biotools
-                biocontainers_file = tmpdir + biotools + '/biocontainers.yaml'
-
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
+                biotool_tmpdir = self.REPO + '/data/{}/'.format(biotools)
+                if not os.path.exists(biotool_tmpdir):
+                    os.makedirs(biotool_tmpdir)
+                files_to_write.append(biotool_tmpdir + '{}.biocontainers.yaml'.format(name))
 
             clabels = {}
             for k, v in labels.items():
                 clabels[k] = v
 
             data = {
-                    'software': name,
-                    'labels': deepcopy(clabels),
-                    'versions': []
-                    }
+                'software': name,
+                'labels': deepcopy(clabels),
+                'versions': []
+            }
+
             softwares = {'softwares': {}}
             softwares["softwares"][name] = data
-            if os.path.exists(biocontainers_file):
-                with open(biocontainers_file) as fp:
-                    softwares = load(fp, Loader=Loader)
 
-            if name not in softwares["softwares"]:
-                softwares["softwares"][name] = data
+            for file_path in files_to_write:
 
-            exists = False
-            for download in softwares["softwares"][name]["versions"]:
-                if download["version"] == container_version:
-                    exists = True
-                    break
+                if name not in softwares["softwares"]:
+                    softwares["softwares"][name] = data
 
-            if not exists:
                 new_download = {
                     "url": "biocontainers/" + name + ":" + container_version,
                     "version": container_version,
@@ -191,14 +183,18 @@ class Biotools:
                 }
                 softwares["softwares"][name]["versions"].append(new_download)
 
-                with open(biocontainers_file, 'w') as fp:
+                with open(file_path, 'w') as fp:
                     dump(softwares, fp, Dumper=Dumper)
 
-                repo.index.add([biocontainers_file])
-                if biotools is not None:
-                    repo.index.commit("Add version for %s:%s" % (biotools, container_version))
-                else:
-                    repo.index.commit("Add version for %s:%s" % (name, container_version))
+            changed = False
+            changed_files = [item.a_path for item in repo.index.diff(None)]
+            for file_path in files_to_write:
+                if file_path in changed_files:
+                    repo.index.add([file_path])
+                    changed = True
+
+            if changed:
+                repo.index.commit("Add version for %s:%s" % (name, container_version))
                 try:
                     logging.info("[biotools] Push to branch %s" % branch)
 
