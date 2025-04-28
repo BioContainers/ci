@@ -18,7 +18,7 @@
     "node-yaml-config": "^1.0.0",
     "nodegit": "^0.27.0",
     "nodemailer": "^6.7.2",
-    "sqlite3": "^5.0.2",
+    "sqlite3": "^5.1.5",
     "yargs": "^17.3.1"
   }
 }
