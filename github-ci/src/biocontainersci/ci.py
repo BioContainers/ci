@@ -242,14 +242,6 @@ class CI:
                 ammend=True
             )
 
-        # Now, local hub:
-        if self.local_name(f):
-            local_manifest = docker_whale.manifest.create(
-                self.local_name(f),
-                [self.local_name(f), self.local_name(f, is_arm=True)],
-                ammend=True
-            )
-
         if hub_manifest:
             docker_whale.manifest.push(self.dockerhub_name(f), purge=True)
             docker_whale.manifest.remove(hub_manifest)
