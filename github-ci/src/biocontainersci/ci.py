@@ -234,8 +234,11 @@ class CI:
         hub_manifest = None
         local_manifest = None
 
+        logging.info("[ci][build] Trying to build manifests for " + self.dockerhub_name(f))
+        
         if self.config['dockerhub']['username']:
             # Might need to login here
+            logging.info("[ci][build] Trying to build dockerhub manifests for " + self.dockerhub_name(f))
             hub_manifest = docker_whale.manifest.create(
                 self.dockerhub_name(f),
                 [self.dockerhub_name(f), self.dockerhub_name(f, is_arm=True)],
@@ -243,6 +246,7 @@ class CI:
             )
 
         if hub_manifest:
+            logging.info("[ci][build] Trying to push dockerhub manifests for " + self.dockerhub_name(f))
             docker_whale.manifest.push(self.dockerhub_name(f), purge=True)
             docker_whale.manifest.remove(hub_manifest)
 
