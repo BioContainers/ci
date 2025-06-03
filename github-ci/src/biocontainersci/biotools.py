@@ -187,7 +187,8 @@ class Biotools:
                     dump(softwares, fp, Dumper=Dumper)
 
             changed = False
-            changed_files = [item.a_path for item in repo.index.diff(None)]
+            changed_files = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
+            print(changed_files)
             for file_path in files_to_write:
                 if file_path in changed_files:
                     repo.index.add([file_path])
