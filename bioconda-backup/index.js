@@ -115,6 +115,7 @@ async function repoFiles(kind='biocontainers', scan_options) {
     let destDir = `${config.workdir}/${kind}`;
     let lastCommit = null;
     if(scan_options.gitSha) {
+      console.log(`scan git commit ${scan_options.gitSha}`);
       lastCommit = scan_options.gitSha;
     }
     if (fs.existsSync(destDir)) {
@@ -172,7 +173,7 @@ async function getQuayioTags(container, scan_options) {
   let page=1;
   let url = `${baseurl}?page=${page}`;
   while(true) {
-    console.debug('call', url)
+    console.debug('[quay.io] call', url)
     try {
       let res = await axios.get(url);
       if(res.data.tags.length == 0) {
@@ -184,7 +185,7 @@ async function getQuayioTags(container, scan_options) {
     } catch(err) {
       if(err.response.status != 404) {
         quay_errors++;
-        console.error('[quayio][tags] error', err.response.status, err.response.statusText);
+        console.error('[quay.io][tags] error', err.response.status, err.response.statusText);
       }
       save_tags(container, tags, 'bioconda');
       return tags;
@@ -198,7 +199,7 @@ async function getDockerhubTags(container, scan_options) {
   let tags = [];
   let url = `https://hub.docker.com/v2/repositories/biocontainers/${container}/tags`;
   while(true) {
-    console.debug('call', url)
+    console.debug('[docker] call', url)
     try {
       let res = await axios.get(url);
       res.data.results.forEach(tag => {
@@ -260,23 +261,23 @@ async function backup(container, tag, quay, scan_options){
       }
     }
 
-    let awsContainer = `public.ecr.aws/${config.aws}/${container}:${tag}`;
+    let awsContainer = `hub.du.cesnet.cz/${config.aws}/${container}:${tag}`;
     let awsBackup = false;
     if(scan_options.aws) {
       if(!config.aws) {
         throw new Error(`[backup][aws] aws not configured ${container}:${tag}`)
       }
       try {
-        let ts = Date.now()
-        console.debug(`[aws][docker][login][last=${(new Date(last_login)).toLocaleString()}][now=${(new Date(ts)).toLocaleString()}]`)
-        if(last_login === 0 || (last_login + (3600*1000)) < Date.now()) {
-          console.debug('[backup][aws] run docker login', (new Date(ts)).toLocaleString());
-          execSync('aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws');
-          last_login = ts
-        } else {
-          console.log('[aws][login] no need to login')
-        }
-
+        //let ts = Date.now()
+        //console.debug(`[aws][docker][login][last=${(new Date(last_login)).toLocaleString()}][now=${(new Date(ts)).toLocaleString()}]`)
+        //if(last_login === 0 || (last_login + (3600*1000)) < Date.now()) {
+          //console.debug('[backup][aws] run docker login', (new Date(ts)).toLocaleString());
+          //execSync('aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws');
+          //execSync('aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws');
+          //last_login = ts
+        //} else {
+        console.log('[aws][login] no need to login')
+        //}
         execSync(`docker manifest inspect ${awsContainer}`);
         console.debug(`[backup][aws] skip ${awsContainer}`);
       } catch(err) {
@@ -325,12 +326,12 @@ async function backup(container, tag, quay, scan_options){
     // if aws, docker login and docker tag+push
     if(awsBackup) {
       if(!scan_options.dry) {
-        try {
-          console.debug('[backup][aws] create repo', container);
-          execSync(`aws ecr-public create-repository --repository-name ${container}`);
-        } catch(err) {
-          console.debug(`[backup] aws repo creation failed, fine, may already exists `, err.message);
-        }
+        //try {
+        //  console.debug('[backup][aws] create repo', container);
+        //  execSync(`aws ecr-public create-repository --repository-name ${container}`);
+        //} catch(err) {
+        //  console.debug(`[backup] aws repo creation failed, fine, may already exists `, err.message);
+        //}
 
         try {
           execSync(`docker tag ${fromContainer} ${awsContainer}`);
@@ -505,7 +506,7 @@ async function quayio(containers, scan_options) {
     if(c === undefined || c === null) {
       continue;
     }
-    console.log('[quay.io]', c);
+    console.log('[quay.io][container]', c);
     let tags = containers[i].tags;
     try {
       if(!tags || tags.length==0) {
@@ -546,12 +547,12 @@ const options = yargs
  .option("b", { alias: "backup", describe: "Backup containers to internal registry", type: "boolean"})
  .option("s", { alias: "security", describe: "Security scan updates", type: "boolean"})
  .option("u", { alias: "updated", describe: "Scan only updated containers/tags, else scan all", type: "boolean"})
- .options("c", {alias: "conda", describe: "check bioconda", type: "boolean"})
- .options("g", {alias: "docker", describe: "check biocontainers dockerfiles", type: "boolean"})
- .options("n", {alias: "use", describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
- .option("d", { alias: "dry", describe: "dry run, do not execute", type: "boolean"})
+ .options("c", { alias: "conda", describe: "check bioconda", type: "boolean"})
+ .options("d", { alias: "docker", describe: "check biocontainers dockerfiles", type: "boolean"})
+ .options("use", { describe: "use specific container for example bioconda:xxx or biocontainers:xxx"})
+ .option("dry", { describe: "dry run, do not execute", type: "boolean"})
  .option("f", { alias: "file", describe: "file path to containers/tags list"})
- .option("g", {alias: "gitSha", describe: "like updated, but scan from related scan sha for updated containers"})
+ .option("git", {alias: "gitSha", describe: "like updated, but scan from related scan sha for updated containers"})
  .argv;
 
 
@@ -584,19 +585,31 @@ async function getContainers(scan_options) {
   let containers = []
   let dockerfiles = await scan('biocontainers', scan_options)
   let docker_containers = []
+  let docker_managed = {}
   for(let i=0;i<dockerfiles.length;i++){
     let elts = dockerfiles[i].split('/');
+    if(docker_managed[elts[elts.length-3]] !== undefined) {
+      continue
+    }
     docker_containers.push({'name': elts[elts.length-3], 'tags': [], quay: false})
+    docker_managed[elts[elts.length-3]] = true
   }
+  docker_managed = null
   let data = await dockerhub(docker_containers, scan_options)
   containers = containers.concat(data)
 
   let condafiles = await scan('bioconda', scan_options)
   let conda_containers = []
+  let conda_managed = {}
   for(let i=0;i<condafiles.length;i++){
     let elts = condafiles[i].split('/');
+    if(conda_managed[elts[elts.length-2]] !== undefined) {
+      continue
+    }
     conda_containers.push({'name': elts[elts.length-2], 'tags': [], quay: true});
+    conda_managed[elts[elts.length-2]] = true
   }
+  conda_managed = null
   data = await quayio(conda_containers, scan_options)
   containers = containers.concat(data)
 
@@ -626,7 +639,12 @@ getContainers(options).then((containers) => {
     await doTheStuff(container.container, container.tag, container.quay, options)
   })
 }).then((res) => {
-  console.log('[doTheStuff]', res.results, res.errors)
+  console.log('[doTheStuff]', res.results.length, res.errors.length)
+  if (res.errors.length > 0) {
+    res.errors.forEach(err => {
+      console.error('sync error', err)
+    });
+  }
   // cleanup
   try {
     execSync(`docker image prune -a`);
@@ -638,12 +656,15 @@ getContainers(options).then((containers) => {
 }).then(() => {
   console.log('done', total, docker_errors, quay_errors);
   fs.unlinkSync(`${config.workdir}/sync.lock`);
-  fs.unlinkSync(`${config.workdir}/${containerFileList}`)
+  if(fs.existsSync(`${config.workdir}/${containerFileList}`)) {
+    fs.unlinkSync(`${config.workdir}/${containerFileList}`)
+  }
   process.exit(0);
 }).catch(err => {
   console.error('oopps!', err, docker_errors, quay_errors);
   fs.unlinkSync(`${config.workdir}/sync.lock`);
   process.exit(1);
 })
+
 
 
