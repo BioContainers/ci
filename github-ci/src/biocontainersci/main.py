@@ -54,14 +54,14 @@ def github_pull_request_files(config):
         if '.github' in pull_file['filename']:
             msg = 'Cannot modify github CI files....'
             logging.error(msg)
-            send_github_pr_comment(config, msg) 
+            send_github_pr_comment(config, msg)
             raise BiocontainersException(msg)
         logging.info('[ci][github][pull request] ' + pull_file['filename'])
         filenames = pull_file['filename'].split('/')
         if len(filenames) < 2:
             msg = "You're trying to update a file not related to a container: " + str(pull_file['filename']) + ", this is forbidden"
             logging.error(msg)
-            send_github_pr_comment(config, msg) 
+            send_github_pr_comment(config, msg)
             raise BiocontainersException(msg)
         container_path = '/'.join([filenames[0], filenames[1]])
         if container_path not in containers:
@@ -101,7 +101,12 @@ def github(config):
 
 def bioworkflow(config, f):
     ci = CI(config)
-    return ci.workflow(f)
+    amd_build = ci.workflow(f)
+    if amd_build:
+        arm_build = ci.workflow_arm(f)
+        if arm_build:
+            ci.build_manifest(f)
+    return amd_build
 
 @click.command()
 @click.option('--file', help='Dockerfile')
