@@ -163,25 +163,16 @@ class Biotools:
 
             data = {
                 'software': name,
-                'labels': deepcopy(clabels),
-                'versions': []
+                "url": "biocontainers/" + name + ":" + container_version,
+                "version": container_version,
+                "type": "Container file",
+                'labels': deepcopy(clabels)
             }
 
             softwares = {'softwares': {}}
             softwares["softwares"][name] = data
 
             for file_path in files_to_write:
-
-                if name not in softwares["softwares"]:
-                    softwares["softwares"][name] = data
-
-                new_download = {
-                    "url": "biocontainers/" + name + ":" + container_version,
-                    "version": container_version,
-                    "type": "Container file",
-                    "labels": deepcopy(clabels)
-                }
-                softwares["softwares"][name]["versions"].append(new_download)
 
                 with open(file_path, 'w') as fp:
                     dump(softwares, fp, Dumper=Dumper)
