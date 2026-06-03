@@ -188,11 +188,14 @@ class Biotools:
 
             changed = False
             changed_files = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
-            print(changed_files)
+            logging.info(changed_files)
             for file_path in files_to_write:
-                if file_path in changed_files:
-                    repo.index.add([file_path])
-                    changed = True
+                logging.info(file_path)
+                for c_file in changed_files:
+                    if file_path.endswith(c_file):
+                        logging.info("Commit file " + c_file)
+                        repo.index.add([c_file])
+                        changed = True
 
             if changed:
                 repo.index.commit("Add version for %s:%s" % (name, container_version))
