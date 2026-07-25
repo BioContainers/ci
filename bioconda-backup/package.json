@@ -11,7 +11,7 @@
   "dependencies": {
     "@supercharge/promise-pool": "^2.3.0",
     "aws-sdk": "^2.1088.0",
-    "axios": "^0.26.0",
+    "axios": "^0.33.0",
     "express": "^4.17.3",
     "flexsearch": "^0.7.21",
     "js-yaml": "^4.1.0",
